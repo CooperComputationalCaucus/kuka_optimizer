@@ -1,0 +1,8 @@
+sonication_time_min:10
+illumination_time_min:60
+gc_method:constant-HS rc
+purge_time:60
+cap_vials:1
+
+SampleIndex,SampleNumber,Name,vial_capped,gc_well_number,hydrogen_evolution,oxygen_evolution,hydrogen_evolution_micromol,oxygen_evolution_micromol,MethyleneBlue0-25g-L,AcidRed871-0g-L,RhodamineB,RoseBengal1-0g-L,TEOA-0-5VV,water,pt\cgn
+${idx},${sample_number},ml_tax_day_trial_${sample_number},1,1,,,,,${MethyleneBlue0-25g-L},${AcidRed871-0g-L},${RhodamineB},${RoseBengal1-0g-L},0.5,${water},5

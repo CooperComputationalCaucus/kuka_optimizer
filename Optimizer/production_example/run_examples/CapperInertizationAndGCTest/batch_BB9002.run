@@ -1,0 +1,13 @@
+batch_name:batch_BB9002
+sonication_time_min:0
+illumination_time_min:0
+gc_method:
+purge_time:15
+
+SampleIndex
+0
+1
+2
+3
+4
+5
