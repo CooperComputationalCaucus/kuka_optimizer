@@ -1,0 +1,8 @@
+sonication_time_min:10
+illumination_time_min:60
+gc_method:constant-HS rc
+purge_time:60
+cap_vials:1
+
+SampleIndex,S-CMP3,TEOA-0-5VV,water,NaCl-1M,NaNO3-1M,Na2SO4-1M,Na2CO3-1M,NaHCO3-1M,Na2PO4-0-5M
+${idx},5,0.5,${water},${NaCl-1M},${NaNO3-1M},${Na2SO4-1M},${Na2CO3-1M},${NaHCO3-1M},${Na2PO4-0-5M}
