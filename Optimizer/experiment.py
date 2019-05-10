@@ -452,7 +452,8 @@ if __name__ == "__main__":
         p2.start()
     except:
         tb = traceback.format_exc()
-        send_alert(tb)
+        print(tb)
+        #send_alert(tb)
         
 #     ### DEBUGINING LINES ###
 #     watch_queue(4)
