@@ -3,12 +3,14 @@ import numpy as np
 from scipy.stats import norm
 from scipy.optimize import minimize
 from multiprocessing import Pool
+import time
 
 from .util import UtilityFunction,ensure_rng
 from .target_space import _hashable
 
 from sklearn.cluster import KMeans
-# TODO: write parallelization for several acquisition functions
+
+TIMEOUT_TIME = 6*60*60 #Hours to timeout
 
 class LocalOptimizer():
     ''' Class of helper functions for minimization (Class needs to be picklable)'''
@@ -391,7 +393,8 @@ def disc_constrained_acq_KMBBO(ac, instance, n_acqs=1, n_slice=200, n_warmup=100
         results = list(pool.imap_unordered(lo.minimizer,x_seeds))
         pool.close()
         pool.join()
-        a_min = sorted(results, key=lambda x: x.fun[0])[0].fun[0]
+        a_min = min(0,sorted(results, key=lambda x: x.fun[0])[0].fun[0]) 
+        # Note: The algorithm needs a minimum l.e.q. 0. 
     else:
         for x_try in x_seeds:
             res = lo.minimizer(x_try)
@@ -399,7 +402,6 @@ def disc_constrained_acq_KMBBO(ac, instance, n_acqs=1, n_slice=200, n_warmup=100
                 continue
             if a_min is None or res.fun[0] <= a_min:
                 a_min = res.fun[0]
-    if a_min>0: a_min = 0 # The algorithm will fail the minimum found is greater than 0
 
     
     # Initial sample over space
@@ -410,6 +412,7 @@ def disc_constrained_acq_KMBBO(ac, instance, n_acqs=1, n_slice=200, n_warmup=100
         for dict in constraint_dict:
             if dict['fun'](s.squeeze())<0: invalid=True   
     # Slice aggregation
+    start_time = time.time()
     for i in range(n_slice):
         u = random_state.uniform(a_min,ac(s, gp=gp, y_max=y_max))  
         while True:
@@ -422,7 +425,12 @@ def disc_constrained_acq_KMBBO(ac, instance, n_acqs=1, n_slice=200, n_warmup=100
             if ac(s, gp=gp, y_max=y_max) > u:
                 slice[i] = s
                 break
+        if time.time()-start_time > 0.5 * TIMEOUT_TIME:
+            raise TimeoutError("Failure in KMMBO optimizer. Slice aggregation is failing..."
+                               " Check number of desired slices (n_slice)")
     
+    # k-means
+    start_time = time.time()
     unique = False
     i=0
     while not unique:
@@ -447,6 +455,10 @@ def disc_constrained_acq_KMBBO(ac, instance, n_acqs=1, n_slice=200, n_warmup=100
         if len(acqs) != n_acqs:
             unique = False
         random_state=None
+        if time.time()-start_time > 0.5 * TIMEOUT_TIME:
+            raise TimeoutError("Failure in KMMBO optimizer. k-means clustering is failing..."
+                               " Check number of desired slices (n_slice) and batch size")
+            
     assert len(acqs) == n_acqs, "k-means clustering is not distinct in discretized space!"     
     return [key for key in acqs.keys()]            
     

@@ -431,11 +431,12 @@ def watch_queue(multiprocessing=1):
             missing_files = exp.BATCH_FILES - exp.queue_size()
             
             #Generate and submit batch
+            start_time = time()
             ### Choose your own adventure ###
-            # batch=exp.generate_batch(batch_size=missing_files*(exp.MINI_BATCH-len(exp.controls)),sampler='KMBBO',**KMBBO_args)
-            batch = exp.generate_batch(batch_size=missing_files * (exp.MINI_BATCH - len(exp.controls)), sampler='greedy', **greedy_args)
+            batch=exp.generate_batch(batch_size=missing_files*(exp.MINI_BATCH-len(exp.controls)),sampler='KMBBO',**KMBBO_args)
+            #batch = exp.generate_batch(batch_size=missing_files * (exp.MINI_BATCH - len(exp.controls)), sampler='greedy', **greedy_args)
             ### Choose your own adventure ###
-            print("Batch was generated. Submitting.\n")
+            print("Batch was generated in {:.2f} minutes. Submitting.\n".format((time()-start_time)/60))
             for i in range(missing_files):
                 exp.register_mini_batch(batch[i*(exp.MINI_BATCH-len(exp.controls)):(i+1)*(exp.MINI_BATCH-len(exp.controls))] + exp.controls)           
         sleep(Experiment.SLEEP_DELAY)
@@ -446,3 +447,11 @@ if __name__ == "__main__":
     sleep(Experiment.SLEEP_DELAY)
     p2 = multiprocessing.Process(target=watch_queue, args=(12,)) #CPUs used for batch generation
     p2.start()
+#     ### DEBUGINING LINES ###
+#     watch_queue(4)
+#     p1 = multiprocessing.Process(target=watch_completed, args=(900,)) #Delay for model building when finding new data
+#     p1.start()
+#     sleep(Experiment.SLEEP_DELAY)
+#     p2 = multiprocessing.Process(target=watch_queue, args=(4,)) #CPUs used for batch generation
+#     p2.start()
+#     ### DEBUGING LINES ###
