@@ -14,11 +14,12 @@ from shutil import copyfile
 import pickle
 import numpy as np
 import traceback
+import uuid
 
 class Experiment:
     MINI_BATCH = 16
     BATCH = 48      
-    BATCH_FILES = 1 #number of files that we want to see in the queue, should be BATCH/BATCH_FILES = MINI_BATCH
+    BATCH_FILES = 3 #number of files that we want to see in the queue, should be BATCH/BATCH_FILES = MINI_BATCH
     SLEEP_DELAY = 5 #delay in seconds before querying the queue folder again
     
     directory_path = './'
@@ -192,7 +193,6 @@ class Experiment:
         if len(dbo.space) > 0: dbo.fit_gp()
         
         # Refresh queue and copy old model
-        self.clean_queue()
         self.read_batch_number()
         fname = os.path.join(self.directory_path,'optimizer.pickle')
         if os.path.isfile(fname):
@@ -201,6 +201,7 @@ class Experiment:
         # Build dictionary to save and return model
         data['processed_files'] = list(self.parser.processed_files.keys())
         data['model'] = dbo
+        data['uuid'] = uuid.uuid4()
         with open(fname, 'wb') as handle:
             pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
             
@@ -235,8 +236,10 @@ class Experiment:
                 running_points = self.get_running_points()
                 for point in running_points:
                     dbo.partner_register(params=point,clear=False)
+                self.model_uuid = data['uuid']
         else:
             dbo = self.generate_model(verbose=verbose, random_state=random_state)
+            self.model_uuid = self.get_saved_model_uuid()
         utility = UtilityFunction(kind=utility_kind, kappa=kappa, xi=xi)
 
         # Generate batch of suggestions
@@ -341,7 +344,9 @@ class Experiment:
                         point[comp] = row[comp]
                         continue
                     else:
-                        print(f"Warning! {comp} was not found in the running/runque dataframe")
+                        #HACK double check, now for batch we get 16* number of missing column info messages rather than 1
+                        point[comp] = 0
+                        # print(f"Info: {comp} was not found in the running/runque dataframe. Substitute with 0.")
                 _points.append(point)
         return _points
     
@@ -390,6 +395,42 @@ class Experiment:
         # return frame['hydrogen_evolution']
         return frame['hydrogen_evolution_micromol']
 
+    def new_model_available(self):
+        new_uuid = self.get_saved_model_uuid()
+        return not (self.model_uuid == new_uuid)
+
+    def get_saved_model_uuid(self):
+        fname = os.path.join(self.directory_path, 'optimizer.pickle')
+        if os.path.isfile(fname):
+            with open(fname, 'rb') as handle:
+                data = pickle.load(handle)
+                new_uuid = data['uuid']
+                return new_uuid;
+        return uuid.uuid4()
+
+
+def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=False):
+
+    KMBBO_args = {'multiprocessing': multiprocessing,
+                  'n_slice':500}
+    greedy_args = {'multiprocessing': multiprocessing,
+                   'n_iter' : 250}
+
+    start_time = time()
+    ### Choose your own adventure ###
+    batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='KMBBO',
+                               **KMBBO_args)
+    # batch = exp.generate_batch(batch_size=missing_files * (exp.MINI_BATCH - len(exp.controls)), sampler='greedy', **greedy_args)
+    ### Choose your own adventure ###
+    print("Batch was generated in {:.2f} minutes. Submitting.\n".format((time() - start_time) / 60))
+    if(perform_clean):
+        exp.clean_queue()
+    for i in range(batches_to_generate):
+        exp.register_mini_batch(batch[i * (exp.MINI_BATCH - len(exp.controls)):(i + 1) * (
+                exp.MINI_BATCH - len(exp.controls))] + exp.controls)
+
+
+
 def watch_completed(lag_time=900):
     '''
     Monitors completed folder, and generates model with a lag time
@@ -422,33 +463,34 @@ def watch_queue(multiprocessing=1):
     or creates a fresh model if none exists. 
     '''
     exp = Experiment()
+    exp.model_uuid = exp.get_saved_model_uuid()
+
     KMBBO_args = {'multiprocessing': multiprocessing,
                   'n_slice':500}
     greedy_args = {'multiprocessing': multiprocessing,
                    'n_iter' : 250}
     while True:
+        # case 1: not enough batches in queue
         if exp.queue_size() < exp.BATCH_FILES:
-            print("There are less than required files in the queue. Generating a new batch.\n", end='Time is ')
+            print("There are less than required files in the queue. Generating a new batches.\n", end='Time is ')
             print (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             missing_files = exp.BATCH_FILES - exp.queue_size()
-            
-            #Generate and submit batch
-            start_time = time()
-            ### Choose your own adventure ###
-            batch=exp.generate_batch(batch_size=missing_files*(exp.MINI_BATCH-len(exp.controls)),sampler='KMBBO',**KMBBO_args)
-            #batch = exp.generate_batch(batch_size=missing_files * (exp.MINI_BATCH - len(exp.controls)), sampler='greedy', **greedy_args)
-            ### Choose your own adventure ###
-            print("Batch was generated in {:.2f} minutes. Submitting.\n".format((time()-start_time)/60))
-            for i in range(missing_files):
-                exp.register_mini_batch(batch[i*(exp.MINI_BATCH-len(exp.controls)):(i+1)*(exp.MINI_BATCH-len(exp.controls))] + exp.controls)           
+            clean_and_generate(exp,missing_files, multiprocessing, False)
+        # case 2: new model
+        elif exp.new_model_available():
+            print("A new model has been generated. Generating new batches.\n", end='Time is ')
+            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            clean_and_generate(exp,exp.BATCH_FILES, multiprocessing, True)
         sleep(Experiment.SLEEP_DELAY)
+
+
 
 if __name__ == "__main__":
     try:
-        p1 = multiprocessing.Process(target=watch_completed, args=(900,)) #Delay for model building when finding new data
+        p1 = multiprocessing.Process(target=watch_completed, args=(1,)) #Delay for model building when finding new data
         p1.start()
         sleep(Experiment.SLEEP_DELAY)
-        p2 = multiprocessing.Process(target=watch_queue, args=(4,)) #CPUs used for batch generation
+        p2 = multiprocessing.Process(target=watch_queue, args=(12,)) #CPUs used for batch generation
         p2.start()
     except:
         tb = traceback.format_exc()
