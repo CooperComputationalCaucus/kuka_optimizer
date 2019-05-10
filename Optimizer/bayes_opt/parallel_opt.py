@@ -10,7 +10,7 @@ from .target_space import _hashable
 
 from sklearn.cluster import KMeans
 
-TIMEOUT_TIME = 6*60*60 #Hours to timeout
+TIMEOUT_TIME = 12*60*60 #Hours to timeout
 
 class LocalOptimizer():
     ''' Class of helper functions for minimization (Class needs to be picklable)'''
