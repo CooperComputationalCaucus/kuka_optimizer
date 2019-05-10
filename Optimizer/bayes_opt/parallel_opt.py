@@ -278,7 +278,7 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=100000, n_iter=250
     ### TEST SETTING  TO IGNORE INPUT ###
     multiprocessing = 1
     ### TEST SETTING  TO IGNORE INPUT ###
-    
+    start_time = time.time()
     # Inialization from instance
     gp = instance._gp
     y_max = instance._space.target.max()
@@ -341,6 +341,10 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=100000, n_iter=250
             if len(acqs)>n_acqs:
                 del acqs[acq_threshold[0]]
                 acq_threshold = sorted(acqs.items(), key=lambda t: (t[1],t[0]))[0]
+        
+        if time.time()-start_time > 0.5 * TIMEOUT_TIME:
+            raise TimeoutError("Failure in greedy constrained optimizer."
+                               " Check number gradient based initializations (n_iter).")
     return [key for key in acqs.keys()]
     
 def disc_constrained_acq_KMBBO(ac, instance, n_acqs=1, n_slice=200, n_warmup=100000, n_iter=250, multiprocessing=1):
