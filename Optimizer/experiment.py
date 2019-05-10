@@ -5,6 +5,7 @@ Allowed ranges of quantities for every component in a dict (Experiment.rng)
 '''
 from bayes_opt import DiscreteBayesianOptimization, UtilityFunction
 from kuka_parser import Parser
+from alerts import send_alert
 import os
 from time import time, sleep
 import datetime
@@ -12,6 +13,7 @@ import multiprocessing
 from shutil import copyfile
 import pickle
 import numpy as np
+import traceback
 
 class Experiment:
     MINI_BATCH = 16
@@ -442,11 +444,16 @@ def watch_queue(multiprocessing=1):
         sleep(Experiment.SLEEP_DELAY)
 
 if __name__ == "__main__":
-    p1 = multiprocessing.Process(target=watch_completed, args=(900,)) #Delay for model building when finding new data
-    p1.start()
-    sleep(Experiment.SLEEP_DELAY)
-    p2 = multiprocessing.Process(target=watch_queue, args=(12,)) #CPUs used for batch generation
-    p2.start()
+    try:
+        p1 = multiprocessing.Process(target=watch_completed, args=(900,)) #Delay for model building when finding new data
+        p1.start()
+        sleep(Experiment.SLEEP_DELAY)
+        p2 = multiprocessing.Process(target=watch_queue, args=(4,)) #CPUs used for batch generation
+        p2.start()
+    except:
+        tb = traceback.format_exc()
+        send_alert(tb)
+        
 #     ### DEBUGINING LINES ###
 #     watch_queue(4)
 #     p1 = multiprocessing.Process(target=watch_completed, args=(900,)) #Delay for model building when finding new data
