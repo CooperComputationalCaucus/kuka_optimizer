@@ -465,10 +465,6 @@ def watch_queue(multiprocessing=1):
     exp = Experiment()
     exp.model_uuid = exp.get_saved_model_uuid()
 
-    KMBBO_args = {'multiprocessing': multiprocessing,
-                  'n_slice':500}
-    greedy_args = {'multiprocessing': multiprocessing,
-                   'n_iter' : 250}
     while True:
         # case 1: not enough batches in queue
         if exp.queue_size() < exp.BATCH_FILES:
