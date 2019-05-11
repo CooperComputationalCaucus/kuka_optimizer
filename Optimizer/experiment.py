@@ -45,9 +45,11 @@ class Experiment:
         self.name = 'Unknown' #Name of the experiment that will appear in all the files
         self.batch_number = 1 #Number of the mini_batch to submit next
         self.liquids = []
+        self.constants = {}
         self.__read_config()
         self.__prep_dirs()
         self.parser = Parser(self.compounds, self.directory_path) #Associated parser responsible for IO operations
+
 
 
     def __read_config(self):
@@ -86,10 +88,13 @@ class Experiment:
                             name = tmp[0]
                             self.compounds.append(name)
                             self.properties[name] = {'phys': tmp[1], 'proc' : tmp[2]}
+                            self.rng[name] = {'lo' : float(tmp[3]), 'hi' : float(tmp[4]), 'res' : float(tmp[5])}
+                            #list liquids for parser
                             if self.properties[name]['phys'] == 'liquid':
                                 self.liquids.append(name)
-                            self.rng[name] = {'lo' : float(tmp[3]), 'hi' : float(tmp[4]), 'res' : float(tmp[5])}
-
+                            # list constants for parser
+                            if self.rng[name]['lo'] == self.rng[name]['hi']:
+                                self.constants[name] = self.rng[name]['lo']
                         if constraints_section:
                             self.constraints.append(line.rstrip())
                             
@@ -363,15 +368,17 @@ class Experiment:
                     Returns false if there is any compounds in the sample that are not under consideration
         '''
         for key, value in point.iteritems():
+            #case 1: standard column that is not representing a compound
             if (key in {'SampleIndex', 'SampleNumber', 'Name', 'vial_capped', 'gc_well_number',
                             'hydrogen_evolution', 'oxygen_evolution', 'hydrogen_evolution_micromol',
                             'oxygen_evolution_micromol','water','water_dispensed'})\
-                    or 'Unnamed' in key:
+                    or 'Unnamed' in key: #deal with faulty comma
                 continue
-            elif (key not in self.compounds) and ((len(key) > 10) and key[:-10] not in self.compounds)\
-                    and value != 0:
-                print('Warning, ignoring point with ' + key + 'and value' + value)
+            #case 2: column representing compound in list
+            elif (key not in self.compounds) and ((len(key) <= 10) or (key[:-10] not in self.compounds)) and value != 0:
+                print('Warning, ignoring point with ' + key + ' and value ' + str(value))
                 return True
+        #no foreign compounds found
         return False
 
     def update_points_and_targets(self):
@@ -410,11 +417,11 @@ class Experiment:
                                 continue
 
                             #TODO check for alternative columns
-                            point[comp] = 0;
+                            point[comp] = 0
                             #print(f"Warning! {comp} was not found in the file {filename}")
                     self.points.append(point)
 
-            #print(len(self.points))
+            print(len(self.points))
 
         
     def optimisation_target(self, frame):
@@ -451,6 +458,10 @@ def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=F
     print("Batch was generated in {:.2f} minutes. Submitting.\n".format((time() - start_time) / 60))
     if(perform_clean):
         exp.clean_queue()
+
+    #add constants
+    for i in range(len(batch)):
+        batch[i].update(exp.constants)
     for i in range(batches_to_generate):
         exp.register_mini_batch(batch[i * (exp.MINI_BATCH - len(exp.controls)):(i + 1) * (
                 exp.MINI_BATCH - len(exp.controls))] + exp.controls)
