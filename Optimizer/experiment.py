@@ -177,6 +177,7 @@ class Experiment:
         if verbose: 
             dbo._prime_subscriptions()
             dbo.dispatch(Events.OPTMIZATION_START)
+
         # Register past data to optimizer
         self.update_points_and_targets()
         for idx, point in enumerate(self.points):
@@ -383,8 +384,10 @@ class Experiment:
                     if comp in frame:
                         point[comp] = row[comp]
                         continue
-                    
-                    print(f"Warning! {comp} was not found in the file {filename}")
+
+                    #HACK double check
+                    point[comp] = 0;
+                    #print(f"Warning! {comp} was not found in the file {filename}")
 
                 self.points.append(point)
 
@@ -448,11 +451,14 @@ def watch_completed(lag_time=900):
     while True:
         count = 0
         for f in os.listdir(completed_dir):
-            if os.path.isfile(os.path.join(completed_dir,f)): count+=1
+            if os.path.isfile(os.path.join(completed_dir,f)):
+                count+=1
+
         if count > n_files:
             print("New completed files detected. Waiting {} seconds to train new model.".format(lag_time))
             n_files = count
             sleep(lag_time)
+
             exp.generate_model()
             print("New model trained. Old model has been saved as ./models/state_{}.pickle".format(exp.batch_number-1))
         sleep(Experiment.SLEEP_DELAY)
@@ -483,7 +489,7 @@ def watch_queue(multiprocessing=1):
 
 if __name__ == "__main__":
     try:
-        p1 = multiprocessing.Process(target=watch_completed, args=(1,)) #Delay for model building when finding new data
+        p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
         p1.start()
         sleep(Experiment.SLEEP_DELAY)
         p2 = multiprocessing.Process(target=watch_queue, args=(12,)) #CPUs used for batch generation
