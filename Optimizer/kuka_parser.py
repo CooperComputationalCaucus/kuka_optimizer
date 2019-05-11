@@ -151,10 +151,11 @@ class Parser:
         
         return dfs
     
-    def submit_mini_batch(self, batch_name, quantities_list):
+    def submit_mini_batch(self, batch_name, quantities_list, liquids):
         '''
         Generates a new file for the workflow and puts it in the runqueue folder.
         E.g. quantities_list = [{'P10-HS' : 5, 'AscorbicAcid0-1M' : 4.99}, {'P10-HS' : 5.1, 'AscorbicAcid0-1M' : 4.39}]
+        liquids = {'AscorbicAcid0-1M', 'NaCL-1-0M'}
         batch_name should be consistent with KUKA workflow.
         The filename is set to batch_name + '.run'
         '''
@@ -178,13 +179,14 @@ class Parser:
 
                     #############################################
                     #JUST ADD WATER. REMOVE FOR OTHER EXPERIMENTS
-                    water = 4.5
+                    water = 5
                     
                     #TEST
                     # test = 10
 
                     for chem, amount in quantity.items():
-                        water = water - amount
+                        if chem in liquids :
+                            water = water - amount
 
                         #TEST
                         # test = test - (0.5 - amount)**2

@@ -44,9 +44,11 @@ class Experiment:
         # self.__read_components()
         self.name = 'Unknown' #Name of the experiment that will appear in all the files
         self.batch_number = 1 #Number of the mini_batch to submit next
+        self.liquids = []
         self.__read_config()
         self.__prep_dirs()
         self.parser = Parser(self.compounds, self.directory_path) #Associated parser responsible for IO operations
+
 
     def __read_config(self):
         '''
@@ -84,6 +86,8 @@ class Experiment:
                             name = tmp[0]
                             self.compounds.append(name)
                             self.properties[name] = {'phys': tmp[1], 'proc' : tmp[2]}
+                            if self.properties[name]['phys'] == 'liquid':
+                                self.liquids.append(name)
                             self.rng[name] = {'lo' : float(tmp[3]), 'hi' : float(tmp[4]), 'res' : float(tmp[5])}
 
                         if constraints_section:
@@ -131,7 +135,7 @@ class Experiment:
             liquids.readline() #ignoring the first line
             for line in liquids.readlines():
                 self.liq.append(line.split(',')[0])
-        
+
         with open(self.directory_path+"solid.csv") as solids:
             solids.readline() #ignoring the first line
             for line in solids.readlines():
@@ -167,7 +171,7 @@ class Experiment:
         '''
         data = {} # Data dictionary to be saved
             
-        prange = {p:(r['lo'],r['hi'],r['res']) for p,r in self.rng.items()}
+        prange = {p:(r['lo'],r['hi'],r['res']) for p,r in self.rng.items() if r['lo'] < r['hi']}
         # Initialize optimizer and utility function 
         dbo = DiscreteBayesianOptimization(f=None,
                                           prange=prange,
@@ -256,7 +260,7 @@ class Experiment:
             print("Warning! You are not submitting the right amount of measurements per mini-batch.")
 
         batch_name = self.name + '-' +  "{:0>4d}".format(self.batch_number)
-        self.parser.submit_mini_batch(batch_name, mini_batch)
+        self.parser.submit_mini_batch(batch_name, mini_batch,self.liquids)
         self.batch_number += 1
 
         self.write_batch_number()
@@ -341,13 +345,14 @@ class Experiment:
                 point = {}
                 
                 for comp in self.compounds:
-                    if comp in df:
-                        point[comp] = row[comp]
-                        continue
-                    else:
-                        #HACK double check, now for batch we get 16* number of missing column info messages rather than 1
-                        point[comp] = 0
-                        # print(f"Info: {comp} was not found in the running/runque dataframe. Substitute with 0.")
+                    if self.rng[name]['lo'] < self.rng[name]['hi']:
+                        if comp in df:
+                            point[comp] = row[comp]
+                            continue
+                        else:
+                            #HACK double check, now for batch we get 16* number of missing column info messages rather than 1
+                            point[comp] = 0
+                            # print(f"Info: {comp} was not found in the running/runque dataframe. Substitute with 0.")
                 _points.append(point)
         return _points
     
@@ -376,18 +381,18 @@ class Experiment:
                 point = {}
                 
                 for comp in self.compounds:
+                    if self.rng[comp]['lo'] < self.rng[comp]['hi']:
+                        if comp + '_dispensed' in frame:
+                            point[comp] = row[comp + '_dispensed']
+                            continue
 
-                    if comp + '_dispensed' in frame:
-                        point[comp] = row[comp + '_dispensed']
-                        continue
-                    
-                    if comp in frame:
-                        point[comp] = row[comp]
-                        continue
+                        if comp in frame:
+                            point[comp] = row[comp]
+                            continue
 
-                    #HACK double check
-                    point[comp] = 0;
-                    #print(f"Warning! {comp} was not found in the file {filename}")
+                        #HACK double check
+                        point[comp] = 0;
+                        #print(f"Warning! {comp} was not found in the file {filename}")
 
                 self.points.append(point)
 
