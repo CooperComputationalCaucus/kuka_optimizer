@@ -343,19 +343,37 @@ class Experiment:
         for df in dfs:
             for idx, row in df.iterrows():
                 point = {}
-                
-                for comp in self.compounds:
-                    if self.rng[name]['lo'] < self.rng[name]['hi']:
-                        if comp in df:
-                            point[comp] = row[comp]
-                            continue
-                        else:
-                            #HACK double check, now for batch we get 16* number of missing column info messages rather than 1
-                            point[comp] = 0
-                            # print(f"Info: {comp} was not found in the running/runque dataframe. Substitute with 0.")
-                _points.append(point)
+
+                if not self.skip_point(row):
+                    for comp in self.compounds:
+                        if self.rng[name]['lo'] < self.rng[name]['hi']:
+                            if comp in df:
+                                point[comp] = row[comp]
+                                continue
+                            else:
+                                # TODO check for alternative columns
+                                point[comp] = 0
+                                # print(f"Info: {comp} was not found in the running/runque dataframe. Substitute with 0.")
+                    _points.append(point)
         return _points
-    
+    def skip_point(self, point):
+        '''
+                    Exclude any points that contain compounds that are not under consideration:
+                    i.e. filter non-variable compounds that are != 0
+                    Returns false if there is any compounds in the sample that are not under consideration
+        '''
+        for key, value in point.iteritems():
+            if (key in {'SampleIndex', 'SampleNumber', 'Name', 'vial_capped', 'gc_well_number',
+                            'hydrogen_evolution', 'oxygen_evolution', 'hydrogen_evolution_micromol',
+                            'oxygen_evolution_micromol','water','water_dispensed'})\
+                    or 'Unnamed' in key:
+                continue
+            elif (key not in self.compounds) and ((len(key) > 10) and key[:-10] not in self.compounds)\
+                    and value != 0:
+                print('Warning, ignoring point with ' + key + 'and value' + value)
+                return True
+        return False
+
     def update_points_and_targets(self):
         '''
         Check whether there are new available measurements.
@@ -379,24 +397,24 @@ class Experiment:
             for idx, row in frame.iterrows():
 
                 point = {}
-                
-                for comp in self.compounds:
-                    if self.rng[comp]['lo'] < self.rng[comp]['hi']:
-                        if comp + '_dispensed' in frame:
-                            point[comp] = row[comp + '_dispensed']
-                            continue
 
-                        if comp in frame:
-                            point[comp] = row[comp]
-                            continue
+                if not self.skip_point(row):
+                    for comp in self.compounds:
+                        if self.rng[comp]['lo'] < self.rng[comp]['hi']:
+                            if comp + '_dispensed' in frame:
+                                point[comp] = row[comp + '_dispensed']
+                                continue
 
-                        #HACK double check
-                        point[comp] = 0;
-                        #print(f"Warning! {comp} was not found in the file {filename}")
+                            if comp in frame:
+                                point[comp] = row[comp]
+                                continue
 
-                self.points.append(point)
+                            #TODO check for alternative columns
+                            point[comp] = 0;
+                            #print(f"Warning! {comp} was not found in the file {filename}")
+                    self.points.append(point)
 
-            # print(self.points)
+            #print(len(self.points))
 
         
     def optimisation_target(self, frame):
