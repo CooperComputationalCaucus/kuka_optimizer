@@ -372,8 +372,6 @@ class Experiment:
                                 if comp in self.identical_compounds.keys():
                                     found_alternative = False
                                     for alternative in self.identical_compounds[comp].keys():
-                                        # there seem to be nan values if the batch has any comments => ignore them
-                                        if alternative in df and not math.isnan(row[alternative]):
                                             print(
                                                 'found_alternative ' + alternative + ' for ' + comp + ' with final concentration ' + str(
                                                     float(row[alternative]) * float(
@@ -471,13 +469,24 @@ class Experiment:
                                 found_alternative = False
                                 for alternative in self.identical_compounds[comp].keys():
                                     # there seem to be nan values if the batch has any comments => ignore them
-                                    if alternative in frame and not math.isnan(row[alternative]):
+                                    if (alternative+'_dispensed') in frame and not math.isnan(row[alternative]):
+                                        print(
+                                            'found_alternative ' + alternative + ' for ' + row['Name'] +
+                                            'and compound' + comp + ' with final concentration ' +
+                                            str(float(row[alternative+'_dispensed'])
+                                                * float(self.identical_compounds[comp][alternative])))
+                                        found_alternative = True
+                                        point[comp] = float(row[alternative+'_dispensed']) * float(
+                                            self.identical_compounds[comp][alternative])
+                                        continue
+                                    elif alternative in frame and not math.isnan(row[alternative]):
                                         print(
                                             'found_alternative ' + alternative + ' for ' + comp + ' with final concentration ' + str(
                                                 float(row[alternative]) * float(self.identical_compounds[comp][alternative])))
                                         found_alternative = True
                                         point[comp] = float(row[alternative]) * float(self.identical_compounds[comp][alternative])
                                         continue
+
                                 if not found_alternative:
                                     point[comp] = 0
                             else:
