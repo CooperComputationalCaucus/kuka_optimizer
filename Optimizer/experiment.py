@@ -373,7 +373,8 @@ class Experiment:
                                     found_alternative = False
                                     for alternative in self.identical_compounds[comp].keys():
                                             print(
-                                                'found_alternative ' + alternative + ' for ' + comp + ' with final concentration ' + str(
+                                                'found_alternative ' + alternative + ' in ' + row['Name'] +
+                                            'for compound' + comp + ' with final concentration ' + str(
                                                     float(row[alternative]) * float(
                                                         self.identical_compounds[comp][alternative])))
                                             found_alternative = True
@@ -471,8 +472,8 @@ class Experiment:
                                     # there seem to be nan values if the batch has any comments => ignore them
                                     if (alternative+'_dispensed') in frame and not math.isnan(row[alternative]):
                                         print(
-                                            'found_alternative ' + alternative + ' for ' + row['Name'] +
-                                            'and compound' + comp + ' with final concentration ' +
+                                            'found_alternative ' + alternative + ' in ' + row['Name'] +
+                                            'for compound' + comp + ' with final value ' +
                                             str(float(row[alternative+'_dispensed'])
                                                 * float(self.identical_compounds[comp][alternative])))
                                         found_alternative = True
@@ -481,7 +482,8 @@ class Experiment:
                                         continue
                                     elif alternative in frame and not math.isnan(row[alternative]):
                                         print(
-                                            'found_alternative ' + alternative + ' for ' + comp + ' with final concentration ' + str(
+                                            'found_alternative ' + alternative + ' in ' + row['Name'] +
+                                            'for compound' + comp +  ' with final value ' + str(
                                                 float(row[alternative]) * float(self.identical_compounds[comp][alternative])))
                                         found_alternative = True
                                         point[comp] = float(row[alternative]) * float(self.identical_compounds[comp][alternative])
