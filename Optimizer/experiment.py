@@ -15,6 +15,7 @@ import pickle
 import numpy as np
 import traceback
 import uuid
+import math
 
 class Experiment:
     MINI_BATCH = 16
@@ -44,8 +45,11 @@ class Experiment:
         # self.__read_components()
         self.name = 'Unknown' #Name of the experiment that will appear in all the files
         self.batch_number = 1 #Number of the mini_batch to submit next
-        self.liquids = []
-        self.constants = {}
+        self.liquids = []     # list of liquids
+        self.constants = {} #lst of compounds to be kept constant during measurements for the current Search space
+        self.identical_compounds = {}  # dictionary with compound name as key, with dictionarys  <compound, <other liquid, concentration factor>>
+
+
         self.__read_config()
         self.__prep_dirs()
         self.parser = Parser(self.compounds, self.directory_path) #Associated parser responsible for IO operations
@@ -89,12 +93,21 @@ class Experiment:
                             self.compounds.append(name)
                             self.properties[name] = {'phys': tmp[1], 'proc' : tmp[2]}
                             self.rng[name] = {'lo' : float(tmp[3]), 'hi' : float(tmp[4]), 'res' : float(tmp[5])}
-                            #list liquids for parser
+
+                            #list liquids
                             if self.properties[name]['phys'] == 'liquid':
                                 self.liquids.append(name)
-                            # list constants for parser
+
+                            # list constants
                             if self.rng[name]['lo'] == self.rng[name]['hi']:
                                 self.constants[name] = self.rng[name]['lo']
+
+                            alt_liq = math.floor(len(tmp) / 2) - 3
+                            if alt_liq > 0:
+                                self.identical_compounds[name] = {}
+                                for x in range(alt_liq):
+                                    self.identical_compounds[name][tmp[6 + 2 * x]] = tmp[7 + 2 * x]
+
                         if constraints_section:
                             self.constraints.append(line.rstrip())
                             
@@ -351,11 +364,28 @@ class Experiment:
 
                 if not self.skip_point(row):
                     for comp in self.compounds:
-                        if self.rng[name]['lo'] < self.rng[name]['hi']:
+                        if self.rng[comp]['lo'] < self.rng[comp]['hi']:
                             if comp in df:
                                 point[comp] = row[comp]
                                 continue
                             else:
+                                if comp in self.identical_compounds.keys():
+                                    found_alternative = False
+                                    for alternative in self.identical_compounds[comp].keys():
+                                        # there seem to be nan values if the batch has any comments => ignore them
+                                        if alternative in df and not math.isnan(row[alternative]):
+                                            print(
+                                                'found_alternative ' + alternative + ' for ' + comp + ' with final concentration ' + str(
+                                                    float(row[alternative]) * float(
+                                                        self.identical_compounds[comp][alternative])))
+                                            found_alternative = True
+                                            point[comp] = float(row[alternative]) * float(
+                                                self.identical_compounds[comp][alternative])
+                                            continue
+                                    if not found_alternative:
+                                        point[comp] = 0
+                                else:
+                                    point[comp] = 0
                                 # TODO check for alternative columns
                                 point[comp] = 0
                                 # print(f"Info: {comp} was not found in the running/runque dataframe. Substitute with 0.")
@@ -374,11 +404,32 @@ class Experiment:
                             'oxygen_evolution_micromol','water','water_dispensed'})\
                     or 'Unnamed' in key: #deal with faulty comma
                 continue
-            #case 2: column representing compound in list
-            elif (key not in self.compounds) and ((len(key) <= 10) or (key[:-10] not in self.compounds)) and value != 0:
-                print('Warning, ignoring point with ' + key + ' and value ' + str(value))
-                return True
-        #no foreign compounds found
+
+            # case 2: column directly representing variable
+            if (key in self.compounds) or ((len(key) > 10) and (key[:-10] in self.compounds)):
+                continue
+
+            # case 3: column representing variable but with different concentration for compound in list
+            skip = False;
+            for compound in self.compounds:
+                if compound in self.identical_compounds and \
+                        ((key in self.identical_compounds[compound].keys()) or ((len(key) > 10) and (key[:-10] in self.identical_compounds[compound].keys())) ):
+                    #print('Found compound that is a variable, but with different concentration' + key)
+                    skip  = True
+                    continue
+            if skip:
+                continue
+
+            # case 4: column is unclear, but value is 0
+            if value == 0:
+                continue
+
+            # case 5: column not representing variable compound in list
+            print('Warning, ignoring point with ' + key + ' and value ' + str(value))
+            return True
+
+
+        #no unexpected columns found
         return False
 
     def update_points_and_targets(self):
@@ -404,8 +455,8 @@ class Experiment:
             for idx, row in frame.iterrows():
 
                 point = {}
-
-                if not self.skip_point(row):
+                skip_point = self.skip_point(row)
+                if not skip_point:
                     for comp in self.compounds:
                         if self.rng[comp]['lo'] < self.rng[comp]['hi']:
                             if comp + '_dispensed' in frame:
@@ -416,12 +467,25 @@ class Experiment:
                                 point[comp] = row[comp]
                                 continue
 
-                            #TODO check for alternative columns
-                            point[comp] = 0
+                            if comp in self.identical_compounds.keys():
+                                found_alternative = False
+                                for alternative in self.identical_compounds[comp].keys():
+                                    # there seem to be nan values if the batch has any comments => ignore them
+                                    if alternative in frame and not math.isnan(row[alternative]):
+                                        print(
+                                            'found_alternative ' + alternative + ' for ' + comp + ' with final concentration ' + str(
+                                                float(row[alternative]) * float(self.identical_compounds[comp][alternative])))
+                                        found_alternative = True
+                                        point[comp] = float(row[alternative]) * float(self.identical_compounds[comp][alternative])
+                                        continue
+                                if not found_alternative:
+                                    point[comp] = 0
+                            else:
+                                point[comp] = 0
                             #print(f"Warning! {comp} was not found in the file {filename}")
                     self.points.append(point)
 
-            print(len(self.points))
+            print('Total number of points in model: ' + str(len(self.points)))
 
         
     def optimisation_target(self, frame):
