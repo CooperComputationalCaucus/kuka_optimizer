@@ -374,7 +374,7 @@ class Experiment:
                                     for alternative in self.identical_compounds[comp].keys():
                                             print(
                                                 'found_alternative ' + alternative + ' in ' + row['Name'] +
-                                            'for compound' + comp + ' with final concentration ' + str(
+                                            ' for compound' + comp + ' with final concentration ' + str(
                                                     float(row[alternative]) * float(
                                                         self.identical_compounds[comp][alternative])))
                                             found_alternative = True
@@ -473,7 +473,7 @@ class Experiment:
                                     if (alternative+'_dispensed') in frame and not math.isnan(row[alternative]):
                                         print(
                                             'found_alternative ' + alternative + ' in ' + row['Name'] +
-                                            'for compound' + comp + ' with final value ' +
+                                            ' for compound' + comp + ' with final value ' +
                                             str(float(row[alternative+'_dispensed'])
                                                 * float(self.identical_compounds[comp][alternative])))
                                         found_alternative = True
@@ -483,7 +483,7 @@ class Experiment:
                                     elif alternative in frame and not math.isnan(row[alternative]):
                                         print(
                                             'found_alternative ' + alternative + ' in ' + row['Name'] +
-                                            'for compound' + comp +  ' with final value ' + str(
+                                            ' for compound' + comp +  ' with final value ' + str(
                                                 float(row[alternative]) * float(self.identical_compounds[comp][alternative])))
                                         found_alternative = True
                                         point[comp] = float(row[alternative]) * float(self.identical_compounds[comp][alternative])
