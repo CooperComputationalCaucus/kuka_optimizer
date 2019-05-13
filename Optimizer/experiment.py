@@ -5,7 +5,6 @@ Allowed ranges of quantities for every component in a dict (Experiment.rng)
 '''
 from bayes_opt import DiscreteBayesianOptimization, UtilityFunction
 from kuka_parser import Parser
-from alerts import send_alert
 import os
 from time import time, sleep
 import datetime
@@ -26,8 +25,6 @@ class Experiment:
     directory_path = './'
 
     def __init__(self, directory_path=None):
-        # self.liq = []
-        # self.sol = []
         if directory_path: self.directory_path=directory_path
 
         #General setup of the experiment
@@ -42,7 +39,6 @@ class Experiment:
         self.targets = [] # measured response at the experiments [1.1, 2.1, ...]
 
 
-        # self.__read_components()
         self.name = 'Unknown' #Name of the experiment that will appear in all the files
         self.batch_number = 1 #Number of the mini_batch to submit next
         self.liquids = []     # list of liquids
@@ -143,30 +139,12 @@ class Experiment:
             except:
                 raise
     
-    def __read_components(self):
-        '''
-        Read liquid.csv and solid.csv
-        Remainder from the old version.
-        '''
-    
-        with open(self.directory_path+"liquid.csv") as liquids:
-            liquids.readline() #ignoring the first line
-            for line in liquids.readlines():
-                self.liq.append(line.split(',')[0])
-
-        with open(self.directory_path+"solid.csv") as solids:
-            solids.readline() #ignoring the first line
-            for line in solids.readlines():
-                self.sol.append(line.split(',')[0])
-    
     def __repr__(self):
         return str(self.__class__) + ": " + str(self.__dict__)
     
     def __str__(self):
         output = f"Experiment '{self.name}' is in progress.\n"
         output += f"The next batch is {self.batch_number}\n"
-        # output += ("  Liquids: " + str(self.liq) + '\n')
-        # output += ("  Solids: " + str(self.sol) + '\n')
         output += "Compounds to vary with ranges and resolution:\n"
         for composition, bounds in self.rng.items():
             # print(bounds)
@@ -526,9 +504,8 @@ def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=F
 
     start_time = time()
     ### Choose your own adventure ###
-    batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='KMBBO',
-                               **KMBBO_args)
-    # batch = exp.generate_batch(batch_size=missing_files * (exp.MINI_BATCH - len(exp.controls)), sampler='greedy', **greedy_args)
+    #batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='KMBBO',**KMBBO_args)
+    batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='greedy', **greedy_args)
     ### Choose your own adventure ###
     print("Batch was generated in {:.2f} minutes. Submitting.\n".format((time() - start_time) / 60))
     if(perform_clean):
@@ -606,8 +583,7 @@ if __name__ == "__main__":
     except:
         tb = traceback.format_exc()
         print(tb)
-        #send_alert(tb)
-        
+
 #     ### DEBUGINING LINES ###
 #     watch_queue(4)
 #     p1 = multiprocessing.Process(target=watch_completed, args=(900,)) #Delay for model building when finding new data
