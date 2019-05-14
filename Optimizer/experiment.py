@@ -316,7 +316,9 @@ class Experiment:
             if os.path.isfile(os.path.join(folder_path, f)) and os.path.splitext(f)[1]=='.run':
                 try:
                     with open(os.path.join(folder_path,f), "r") as file_input:
-                        if self.name in file_input.readline(): clean = True
+                        if self.name in file_input.readline()\
+                                and self.name + '-0' not in file_input.readline(): # not deleting manually submitted files
+                            clean = True
                 except IOError:
                     print("One of the queue files was not processed ({:s}). Check Experiment.clean_queue.".format(f)) 
                 except UnicodeDecodeError:
@@ -334,13 +336,15 @@ class Experiment:
         This purposefully ignores '_dispensed' values, since this shouldn't be relevant until completed. 
         '''
         dfs = self.parser.process_running(self.name)
-        
+        skipped = 0
         _points = []
         for df in dfs:
             for idx, row in df.iterrows():
                 point = {}
 
-                if not self.skip_point(row):
+                if self.skip_point(row):
+                    skipped = skipped + 1
+                else:
                     for comp in self.compounds:
                         if self.rng[comp]['lo'] < self.rng[comp]['hi']:
                             if comp in df:
@@ -350,11 +354,12 @@ class Experiment:
                                 if comp in self.identical_compounds.keys():
                                     found_alternative = False
                                     for alternative in self.identical_compounds[comp].keys():
-                                            print(
-                                                'found_alternative ' + alternative + ' in ' + row['Name'] +
-                                            ' for compound' + comp + ' with final concentration ' + str(
-                                                    float(row[alternative]) * float(
-                                                        self.identical_compounds[comp][alternative])))
+                                        if alternative in df:
+                                            #print(
+                                            #    'found_alternative ' + alternative + ' in ' + row['Name'] +
+                                            #' for compound' + comp + ' with final concentration ' + str(
+                                            #        float(row[alternative]) * float(
+                                            #            self.identical_compounds[comp][alternative])))
                                             found_alternative = True
                                             point[comp] = float(row[alternative]) * float(
                                                 self.identical_compounds[comp][alternative])
@@ -363,11 +368,13 @@ class Experiment:
                                         point[comp] = 0
                                 else:
                                     point[comp] = 0
-                                # TODO check for alternative columns
                                 point[comp] = 0
-                                # print(f"Info: {comp} was not found in the running/runque dataframe. Substitute with 0.")
                     _points.append(point)
+
+        if skipped != 0:
+            print('Warning: Ignored ' + str(skipped) + ' points.')
         return _points
+
     def skip_point(self, point):
         '''
                     Exclude any points that contain compounds that are not under consideration:
@@ -402,7 +409,7 @@ class Experiment:
                 continue
 
             # case 5: column not representing variable compound in list
-            print('Warning, ignoring point with ' + key + ' and value ' + str(value))
+            #print('Warning, ignoring point with ' + key + ' and value ' + str(value))
             return True
 
 
@@ -428,12 +435,14 @@ class Experiment:
             print(f"Adding data from {filename} to the list of points: {len(frame)} measurements.")
 
             self.targets.extend(list(self.optimisation_target(frame)))
-
+            skipped = 0
             for idx, row in frame.iterrows():
 
                 point = {}
                 skip_point = self.skip_point(row)
-                if not skip_point:
+                if skip_point:
+                    skipped = skipped+1
+                else:
                     for comp in self.compounds:
                         if self.rng[comp]['lo'] < self.rng[comp]['hi']:
                             if comp + '_dispensed' in frame:
@@ -449,20 +458,20 @@ class Experiment:
                                 for alternative in self.identical_compounds[comp].keys():
                                     # there seem to be nan values if the batch has any comments => ignore them
                                     if (alternative+'_dispensed') in frame and not math.isnan(row[alternative]):
-                                        print(
-                                            'found_alternative ' + alternative + ' in ' + row['Name'] +
-                                            ' for compound' + comp + ' with final value ' +
-                                            str(float(row[alternative+'_dispensed'])
-                                                * float(self.identical_compounds[comp][alternative])))
+                                        #print(
+                                        #    'found_alternative ' + alternative + ' in ' + row['Name'] +
+                                        #    ' for compound' + comp + ' with final value ' +
+                                        #    str(float(row[alternative+'_dispensed'])
+                                        #        * float(self.identical_compounds[comp][alternative])))
                                         found_alternative = True
                                         point[comp] = float(row[alternative+'_dispensed']) * float(
                                             self.identical_compounds[comp][alternative])
                                         continue
                                     elif alternative in frame and not math.isnan(row[alternative]):
-                                        print(
-                                            'found_alternative ' + alternative + ' in ' + row['Name'] +
-                                            ' for compound' + comp +  ' with final value ' + str(
-                                                float(row[alternative]) * float(self.identical_compounds[comp][alternative])))
+                                        #print(
+                                        #    'found_alternative ' + alternative + ' in ' + row['Name'] +
+                                        #    ' for compound' + comp +  ' with final value ' + str(
+                                        #        float(row[alternative]) * float(self.identical_compounds[comp][alternative])))
                                         found_alternative = True
                                         point[comp] = float(row[alternative]) * float(self.identical_compounds[comp][alternative])
                                         continue
@@ -474,6 +483,8 @@ class Experiment:
                             #print(f"Warning! {comp} was not found in the file {filename}")
                     self.points.append(point)
 
+            if skipped != 0:
+                print('Warning: Ignored ' + str(skipped) + ' points.')
             print('Total number of points in model: ' + str(len(self.points)))
 
         
