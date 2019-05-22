@@ -385,7 +385,8 @@ class Experiment:
             #case 1: standard column that is not representing a compound
             if (key in {'SampleIndex', 'SampleNumber', 'Name', 'vial_capped', 'gc_well_number',
                             'hydrogen_evolution', 'oxygen_evolution', 'hydrogen_evolution_micromol',
-                            'oxygen_evolution_micromol','water','water_dispensed'})\
+                            'oxygen_evolution_micromol','water','water_dispensed',
+                            'internal_hydrogen_standard_micromol','weighted_hydrogen_micromol','sample_location_weight','weighted_is_sl_hydrogen_evolution_micromol'})\
                     or 'Unnamed' in key: #deal with faulty comma
                 continue
 
@@ -490,7 +491,8 @@ class Experiment:
         
     def optimisation_target(self, frame):
         # return frame['hydrogen_evolution']
-        return frame['hydrogen_evolution_micromol']
+        # return frame['hydrogen_evolution_micromol']
+        return frame['weighted_hydrogen_micromol']
 
     def new_model_available(self):
         new_uuid = self.get_saved_model_uuid()
