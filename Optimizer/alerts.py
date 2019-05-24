@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 from string import Template
 
 ### Set of globals to be set relative to workflow ###
-USERS_FILE = './users.csv'
+USERS_FILE = './operators.txt'
 EMAIL_LOGIN = ''
 EMAIL_PASSWORD = ''
 SMTP_PORT = 999
@@ -20,7 +20,7 @@ def get_contacts(fname):
     emails = []
     with open(fname, 'r') as f:
         for line in f:
-            cols = line.split(',')
+            cols = line.split(sep=',')
             names.append(cols[0])
             emails.append(cols[1])
             
