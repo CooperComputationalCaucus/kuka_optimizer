@@ -83,6 +83,9 @@ bin/*
 tmp/*
 tests/pmm_scratch.ipynb
 5dye_start_ml/*
+running/*
+runqueue/*
+completed/*
 
 #Exceptions to the above#
 ######################## (use !)
