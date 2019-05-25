@@ -30,3 +30,14 @@ class Parabolic():
             point[i] = kwargs[f'x_{i}']
     
         return self.DIM - sum([self.sensitivity[i]*(point[i]-self.arg_opt[i])**2 for i in range(self.DIM)])
+    
+class PhilsFun():
+    '''Specific analytical funciton used for 1-d visialuation'''
+    def __init__(self):
+        
+        self.f = self.fun
+    
+    def fun(self,x):
+        return np.exp(-(x - 2)**2) + np.exp(-(x - 6)**2/10) + 1/ (x**2 + 1) + 2*np.exp(-(x - 5)**2) + np.exp(-(x - 8)**2/10) +np.exp(-(x - 10)**2) 
+        
+        

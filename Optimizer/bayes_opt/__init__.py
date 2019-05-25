@@ -1,4 +1,4 @@
-from .bayesian_optimization import BayesianOptimization, Events,DiscreteBayesianOptimization
+from .bayesian_optimization import BayesianOptimization, Events, DiscreteBayesianOptimization
 from .util import UtilityFunction
 from .logger import ScreenLogger, JSONLogger
 
