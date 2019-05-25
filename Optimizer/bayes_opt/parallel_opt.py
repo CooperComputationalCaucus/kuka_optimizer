@@ -293,12 +293,26 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=100000, n_iter=250
     x_tries = np.floor((random_state.uniform(bounds[:, 0], bounds[:, 1], 
                                              size=(n_warmup, bounds.shape[0]))-bounds[:,0])/
                                              steps)*steps+bounds[:,0]
-    # Apply constraints
+    # Apply constraints to initial tries
+    mask =np.ones((x_tries.shape[0],),dtype=bool)
     for dict in instance.get_constraint_dict():
-        mask =np.ones((x_tries.shape[0],),dtype=bool)
         for i,x in enumerate(x_tries[:]):
             if dict['fun'](x)<0: mask[i]=False
-        x_tries=x_tries[mask,:]
+    
+    # Satisfy each initial point to ensure n_warmup
+    idx = 0
+    while (~mask).any():
+        if mask[idx]:
+            idx+=1
+            continue
+        while ~mask[idx]:
+            mask[idx] = True
+            proposal = np.floor((random_state.uniform(bounds[:, 0], bounds[:, 1], 
+                                             size=(1, bounds.shape[0]))-bounds[:,0])/
+                                             steps)*steps+bounds[:,0]
+            for dict in instance.get_constraint_dict():
+                if dict['fun'](proposal)<0: mask[idx]=False
+    
     ys = ac(x_tries, gp=gp, y_max=y_max)
     
     # Using a dictionary to update top n_acqs,and retains the threshold for the bottom
@@ -317,12 +331,24 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=100000, n_iter=250
     x_seeds = random_state.uniform(bounds[:, 0], bounds[:, 1],
                                    size=(n_iter, bounds.shape[0]))
     # Ensure seeds satisfy initial constraints
+    mask = np.ones((x_seeds.shape[0],),dtype=bool)
     for dict in instance.get_constraint_dict():
-        mask = np.ones((x_seeds.shape[0],),dtype=bool)
         for i,x in enumerate(x_seeds[:]):
             if dict['fun'](x)<0: mask[i]=False
-        x_seeds=x_seeds[mask,:]
-        
+    
+    # If not replace seeds with satisfactory points
+    idx = 0 
+    while (~mask).any():
+        if mask[idx]:
+            idx+=1
+            continue
+        while ~mask[idx]:
+            mask[idx] = True
+            proposal = random_state.uniform(bounds[:, 0], bounds[:, 1],
+                                   size=(n_iter, bounds.shape[0]))
+            for dict in instance.get_constraint_dict():
+                if dict['fun'](proposal)<0: mask[idx]=False
+
     for x_try in x_seeds:
         # Maximize the acquisition function
         res = lo.maximizer(x_try)
