@@ -587,18 +587,18 @@ def watch_queue(multiprocessing=1):
 
 
 if __name__ == "__main__":
-    try:
-        p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
-        p1.start()
-        sleep(Experiment.SLEEP_DELAY)
-        p2 = multiprocessing.Process(target=watch_queue, args=(12,)) #CPUs used for batch generation
-        p2.start()
-    except:
-        tb = traceback.format_exc()
-        print(tb)
+    # try:
+    #     p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
+    #     p1.start()
+    #     sleep(Experiment.SLEEP_DELAY)
+    #     p2 = multiprocessing.Process(target=watch_queue, args=(12,)) #CPUs used for batch generation
+    #     p2.start()
+    # except:
+    #     tb = traceback.format_exc()
+    #     print(tb)
 
 #     ### DEBUGINING LINES ###
-#     watch_queue(4)
+    watch_queue(4)
 #     p1 = multiprocessing.Process(target=watch_completed, args=(900,)) #Delay for model building when finding new data
 #     p1.start()
 #     sleep(Experiment.SLEEP_DELAY)
