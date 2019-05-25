@@ -513,7 +513,8 @@ def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=F
     KMBBO_args = {'multiprocessing': multiprocessing,
                   'n_slice':500}
     greedy_args = {'multiprocessing': multiprocessing,
-                   'n_iter' : 250}
+                   'n_iter' : 250,
+                   'n_warmup': 1000}
 
     start_time = time()
     ### Choose your own adventure ###

@@ -254,7 +254,7 @@ def disc_acq_KMBBO(ac, instance, n_acqs=1, n_slice=200, n_warmup=100000, n_iter=
     assert len(acqs) == n_acqs, "k-means clustering is not distinct in discretized space!"     
     return [key for key in acqs.keys()]                         
     
-def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=100000, n_iter=250, multiprocessing=1):    
+def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250, multiprocessing=1):    
     """
     A function to find the maximum of the acquisition function subject to inequality constraints
 
@@ -308,7 +308,7 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=100000, n_iter=250
         while ~mask[idx]:
             mask[idx] = True
             proposal = np.floor((random_state.uniform(bounds[:, 0], bounds[:, 1], 
-                                             size=(1, bounds.shape[0]))-bounds[:,0])/
+                                             size=(bounds.shape[0]))-bounds[:,0])/
                                              steps)*steps+bounds[:,0]
             for dict in instance.get_constraint_dict():
                 if dict['fun'](proposal)<0: mask[idx]=False
@@ -345,7 +345,7 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=100000, n_iter=250
         while ~mask[idx]:
             mask[idx] = True
             proposal = random_state.uniform(bounds[:, 0], bounds[:, 1],
-                                   size=(n_iter, bounds.shape[0]))
+                                   size=(bounds.shape[0]))
             for dict in instance.get_constraint_dict():
                 if dict['fun'](proposal)<0: mask[idx]=False
 
