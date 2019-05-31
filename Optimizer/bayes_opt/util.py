@@ -238,3 +238,31 @@ class Colours:
     def yellow(cls, s):
         """Wrap text in yellow."""
         return cls._wrap_colour(s, cls.YELLOW)
+
+
+'''
+Bits related to sampling under constraints.
+'''
+def get_rnd_simplex(dimension):
+    '''
+    uniform point on a simplex, i.e. x_i >= 0 and sum of the coordinates is 1.
+    '''
+    t = np.random.uniform(0, 1, dimension-1)
+    t = np.append(t,[0,1])
+    t.sort()
+
+    return np.array([(t[i+1] - t[i]) for i in range(len(t)-1)])
+
+def get_rnd_quantities(max_amount, dimension):
+    '''
+    Get an array of quantities x_i>=0 which sum up to max_amount at most.
+    It is not uniform, since smaller quantities would be preferred, but for the
+    purpose of acquisition function it is irrelevant (can made uniform with weighted scaling).
+    '''
+    return get_rnd_simplex(dimension) * np.random.uniform(0,max_amount)
+
+# print(get_rnd_simplex(4))
+
+if __name__ == "__main__":
+    for i in range(10):
+        print(get_rnd_quantities(4.5, 6))
