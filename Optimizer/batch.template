@@ -4,5 +4,5 @@ gc_method:constant-HS rc
 purge_time:60
 cap_vials:1
 
-SampleIndex,S-CMP3,TEOA-0-5VV,water,NaCl-1M,NaNO3-1M,Na2SO4-1M,Na2CO3-1M,NaHCO3-1M,Na2PO4-0-25M
-${idx},${S-CMP3},${TEOA-0-5VV},${water},${NaCl-1M},${NaNO3-1M},${Na2SO4-1M},${Na2CO3-1M},${NaHCO3-1M},${Na2PO4-0-25M}
+SampleIndex,P10-CA1,TEOA-0-5VV,water,NaCl-1M,NaNO3-1M,Na2SO4-1M,Na2CO3-1M,NaHCO3-1M,Na2PO4-0-25M
+${idx},${P10-CA1},${TEOA-0-5VV},${water},${NaCl-1M},${NaNO3-1M},${Na2SO4-1M},${Na2CO3-1M},${NaHCO3-1M},${Na2PO4-0-25M}

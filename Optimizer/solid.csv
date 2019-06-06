@@ -1,0 +1,16 @@
+SolidName,Location,Blocked,tapping,DispensingAlgorithm,Min,Max
+P10-HS,0,0,100,Advanced,0.0,5.0,967
+CaCO3,1,0,100,Advanced,0.0,5.0,999
+FS-COF,4,1,100,Advanced,0.0,1.0,925
+domen_xb_1,5,0,100,Advanced,0.0,5.0,999
+pt/gcn2,3,0,100,Advanced,0.0,5.0,499
+S-CMP3,2,0,100,Advanced,0.0,5.0,652
+P10-CA1,-1,0,100,Advanced,0.0,5.0,202
+P10-CA2,8,0,100,Advanced,0.0,5.0,967
+P10-CA3,10,0,100,Advanced,0.0,5.0,951
+S-CMP3-CA1,7,0,100,Advanced,0.0,5.0,999
+P10-CA2-AM,9,0,100,Advanced,0.0,5.0,951
+S-CMP3-CA2,11,0,100,Advanced,0.0,5.0,108
+P10-CA1,12,0,100,Advanced,0.0,5.0,999
+P10-CA2-IBM,13,0,100,Advanced,0.0,5.0,999
+S-CMP3-CA2-IBM,14,0,100,Advanced,0.0,5.0,999
