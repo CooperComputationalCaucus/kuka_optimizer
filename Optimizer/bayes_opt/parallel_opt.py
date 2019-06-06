@@ -290,9 +290,9 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
     lo = LocalConstrainedOptimizer(ac,gp,y_max,bounds,constraints=instance.get_constraint_dict())
 
     # Warm up with random points
-    x_tries = np.floor((random_state.uniform(bounds[:, 0], bounds[:, 1], 
-                                             size=(n_warmup, bounds.shape[0]))-bounds[:,0])/
-                                             steps)*steps+bounds[:,0]
+    x_tries = instance.constrained_rng(n_warmup,bin=True)
+    
+    
     # Apply constraints to initial tries
     mask =np.ones((x_tries.shape[0],),dtype=bool)
     for dict in instance.get_constraint_dict():
@@ -300,6 +300,7 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
             if dict['fun'](x)<0: mask[i]=False
     
     # Satisfy each initial point to ensure n_warmup
+    # This should not be needed given the nature of the constrained_rng
     idx = 0
     while (~mask).any():
         if mask[idx]:
@@ -307,9 +308,7 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
             continue
         while ~mask[idx]:
             mask[idx] = True
-            proposal = np.floor((random_state.uniform(bounds[:, 0], bounds[:, 1], 
-                                             size=(bounds.shape[0]))-bounds[:,0])/
-                                             steps)*steps+bounds[:,0]
+            proposal = instance.constrained_rng(1,bin=True)
             for dict in instance.get_constraint_dict():
                 if dict['fun'](proposal)<0: mask[idx]=False
     
@@ -328,8 +327,8 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
     acq_threshold = sorted(acqs.items(), key=lambda t: (t[1],t[0]))[0]
    
     # Explore the parameter space more throughly
-    x_seeds = random_state.uniform(bounds[:, 0], bounds[:, 1],
-                                   size=(n_iter, bounds.shape[0]))
+    x_seeds = instance.constrained_rng(n_iter,bin=False)
+    
     # Ensure seeds satisfy initial constraints
     mask = np.ones((x_seeds.shape[0],),dtype=bool)
     for dict in instance.get_constraint_dict():
@@ -344,8 +343,7 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
             continue
         while ~mask[idx]:
             mask[idx] = True
-            proposal = random_state.uniform(bounds[:, 0], bounds[:, 1],
-                                   size=(bounds.shape[0]))
+            proposal = instance.constrained_rng(1,bin=False)
             for dict in instance.get_constraint_dict():
                 if dict['fun'](proposal)<0: mask[idx]=False
 
@@ -437,7 +435,7 @@ def disc_constrained_acq_KMBBO(ac, instance, n_acqs=1, n_slice=200, n_warmup=100
     # Initial sample over space
     invalid=True
     while invalid:
-        s = random_state.uniform(bounds[:, 0], bounds[:, 1],size=(1, bounds.shape[0]))
+        s = instance.constrained_rng(1,bin=False)
         invalid=False
         for dict in constraint_dict:
             if dict['fun'](s.squeeze())<0: invalid=True   
@@ -448,7 +446,7 @@ def disc_constrained_acq_KMBBO(ac, instance, n_acqs=1, n_slice=200, n_warmup=100
         while True:
             invalid=True
             while invalid:
-                s = random_state.uniform(bounds[:, 0], bounds[:, 1],size=(1, bounds.shape[0]))
+                s = instance.constrained_rng(1,bin=False)
                 invalid=False
                 for dict in constraint_dict:
                     if dict['fun'](s.squeeze())<0: invalid=True 

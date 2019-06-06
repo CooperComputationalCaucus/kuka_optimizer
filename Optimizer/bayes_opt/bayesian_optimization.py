@@ -5,7 +5,7 @@ from multiprocessing import Pool
 from .target_space import TargetSpace, DiscreteSpace, PartnerSpace
 from .event import Events, DEFAULT_EVENTS
 from .logger import _get_default_logger, _get_discrete_logger
-from .util import UtilityFunction, acq_max, ensure_rng
+from .util import UtilityFunction, acq_max, ensure_rng,get_rnd_quantities
 from .parallel_opt import disc_acq_max, disc_acq_KMBBO
 from .parallel_opt import disc_constrained_acq_max, disc_constrained_acq_KMBBO
 
@@ -295,7 +295,50 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             self._gp.fit(self._space.params, self._space.target)
+    
+    def constrained_rng(self,n_points,bin=False):
+        '''
+        Random number generator that deals more effectively with highly constrained spaces. 
+        
+        Works only off single constraint of form L - sum(x_i) >=0
+        Where the lower bound of each x_i is 0. 
+        Parameters
+        ----------
+        n_points: integer number of points to generate
+        '''
+        
+        if len(self.constraints) != 1:
+            raise ValueError("Too many constraints for constrained random number generator")
+        
+        bounds = self.space.bounds
+        steps = self.space.steps
+        random_state = self._random_state
+        
+        # Get size and max amount from single constraint
+        n_constrained_var = 0
+        max_amount = self.constraints[0].replace('-','')
+        for i in range(len(self.space.keys)):
+            if 'x[{}]'.format(i) in self.constraints[0]: 
+                n_constrained_var+=1
+                max_amount = max_amount.replace('x[{}]'.format(i),'')
+        
+        max_amount = float(max_amount)
+        
+        # Generate randoms and update sample
+        x = np.zeros((n_points, bounds.shape[0]))
+        for i in range(n_points):
+            cnt = 0
+            rnd = get_rnd_quantities(max_amount,n_constrained_var,random_state)
+            for j in range(bounds.shape[0]):
+                if 'x[{}]'.format(j) in self.constraints[0]:
+                    x[i,j]  = min(rnd[cnt],bounds[j, 1])
+                    cnt+=1
+                else:
+                    x[i,j] = random_state.uniform(bounds[j, 0], bounds[j, 1])
             
+        if bin: x = np.floor((x-bounds[:,0])/steps)*steps+bounds[:,0]
+        return x
+    
     def suggest(self, utility_function,sampler='greedy',fit_gp=True,**kwargs):
         """
         Potential keywords 
