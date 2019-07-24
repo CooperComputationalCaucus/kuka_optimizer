@@ -31,9 +31,11 @@ class Experiment:
         self.compounds = [] #Simply the list of compounds to vary
         self.properties = {} # Properties (liquid, solid, etc.) of the compounds, e.g. comp['P10'] = {'phys': 'solid', 'proc' : 'cat'}
         self.rng = {} # Ranges with resolution, e.g. rng['P10'] = {'lo' : 0, 'hi' : 1, 'res' : 0.1}
+        self.dbo_ranges = {} # Ranges with resolution formated for dbo (including maping of complements) 
         self.constraints = [] # list of the constraints that points should satisfy, e.g.
         self.controls = [] # list of the control experiments to include in each minibatch
-
+        self.complements = {} #Mapping of all complementary variables to single dimensions in optimizer space {'!Complement!_01' : {}}
+        
         #Outcomes of ongoing experimentation
         self.points = [] # list of measured targets (different experiments), e.g. [{'P10' : 0.1, 'TiO2' : 0.2}, ... ]
         self.targets = [] # measured response at the experiments [1.1, 2.1, ...]
@@ -64,7 +66,8 @@ class Experiment:
                 compounds_section = True
                 constraints_section = False
                 controls_section = False
-
+                complements_section = False
+                
                 self.name = f.readline().rstrip()
 
                 for line in f.readlines():
@@ -77,11 +80,20 @@ class Experiment:
                             constraints_section = True
                             compounds_section = False
                             controls_section = False
+                            complements_section = False
                             continue
                         elif line.startswith("Controls"):
                             constraints_section = False
                             compounds_section = False
                             controls_section = True
+                            complements_section = False
+                            continue
+                        elif line.startswith("Complements"):
+                            constraints_section = False
+                            compounds_section = False
+                            controls_section = False
+                            complements_section = True
+                            cidx=1
                             continue                        
                         if compounds_section:
                             tmp = line.rstrip().split(sep=',')
@@ -114,10 +126,41 @@ class Experiment:
                                 tmp = col.split(sep=':')
                                 d[tmp[0].strip()] = float(tmp[1])
                             self.controls.append(d)
-        
+                            
+                        if complements_section:
+                            ''' General format:
+                            {!Complement!_cidx: {A_name: compound, A_range: rng, B_name: compound, B_range: rng}}
+                            '''
+                            cols = [col.strip() for col in line.rstrip().split(sep=':')]
+                            assert len(cols)==2, "Complements come in pairs! Failure at '{}'".format(line)
+                            assert cols[0] in self.compounds, "This complement is not in the compounds: {}".format(cols[0]) 
+                            assert cols[1] in self.compounds, "This complement is not in the compounds: {}".format(cols[1]) 
+                            self.complements['!Complement!_{}'.format(cidx)] = {'A_name': cols[0],
+                                                                                'B_name': cols[1]}
+                            try:
+                                self.complements['!Complement!_{}'.format(cidx)]['A_range'] = self.rng[cols[0]]
+                                self.complements['!Complement!_{}'.format(cidx)]['B_range'] =  self.rng[cols[1]]
+                            except:
+                                raise SyntaxError("Please place complements after compounds and ranges in configuration file.")
+                            cidx+=1
+                                                       
+            # Update of optimizer ranges and constraints from complements
+            self.dbo_ranges = {p:(r['lo'],r['hi'],r['res']) for p,r in self.rng.items() if r['lo'] < r['hi']}
+            for key,dict in self.complements.items():
+                a = self.dbo_ranges.pop(dict['A_name'])
+                b = self.dbo_ranges.pop(dict['B_name'])
+                self.dbo_ranges[key] = (0.,1.,min(a[2]/(a[1]-a[0])/2,
+                                                  b[2]/(b[1]-b[0])/2))
+                
+                new_constraints = []
+                for s in self.constraints:
+                    s=s.replace(dict['A_name'],"(({}<0.5) * (((0.5 - {})/0.5) * ({:f}-{:f}) + {:f}) )".format(key,key,a[1],a[0],a[0]))
+                    s=s.replace(dict['B_name'],"(({}>=0.5) * ((({} - 0.5)/0.5) * ({:f}-{:f}) + {:f}) )".format(key,key,b[1],b[0],b[0]))
+                    new_constraints.append(s)
+                self.constraints = new_constraints
+                
         except IOError:
             print("There is no configuration file in the experiment folder.")
-
         try:
             with open(self.directory_path+'optimizer.state', "r") as f:
                 self.batch_number = int(f.readline().rstrip())
@@ -151,7 +194,49 @@ class Experiment:
             output += (f'    {composition}: [' + str(bounds['lo']) \
                 + ', '+ str(bounds['hi']) +', ' + str(bounds['res']) + ']\n')
         return output
-
+    
+    def complement_mapping(self,point):
+        '''
+        Maps any complementary variables in a point to a single variable in optimizer space, 
+        or maps the  single variable in optimizer space back to the complementary points
+        in configuration space. 
+        
+        Arguments
+        ----------
+        point: dictionary of variable names and points, updated inplace
+        '''
+        if len(self.complements)==0: return
+        
+        keys = [key for key in point]
+        if any(key.split('_')[0]=='!Complement!' for key in keys): 
+            for key in key:
+                if key.split('_')[0]!='!Complement!': continue
+                dict = self.complements[key]
+                val = point.pop(key)
+                if val<0.5:
+                    pass#A
+                    a_val = ((0.5 - val)/0.5) * (dict['A_range']['hi']-dict['A_range']['lo']) + dict['A_range']['lo']
+                    b_val = 0
+                else:
+                    a_val = 0
+                    b_val = ((val-0.5)/0.5) * (dict['B_range']['hi']-dict['B_range']['lo']) + dict['B_range']['lo']
+                    
+                point[dict['A_name']]=a_val
+                point[dict['B_name']]=b_val
+        else:
+            for complement,dict in self.complements.items():
+                a_val = point.pop(dict['A_name'])
+                b_val = point.pop(dict['B_name'])
+                if a_val>0 and b_val>0: raise RuntimeError("Complementary values are both nonzero")
+                if a_val>0: 
+                    new_val = 0.5-0.5*((a_val - dict['A_range']['lo'])/(dict['A_range']['hi'] - dict['A_range']['lo']))
+                elif b_val>0:
+                    new_val = 0.5+0.5*((b_val - dict['B_range']['lo'])/(dict['B_range']['hi'] - dict['B_range']['lo']))
+                else:
+                    new_val = 0.
+                point[complement] = new_val
+        
+        return
     def generate_model(self, verbose=0, random_state=None):
         '''
         Creates, saves, and returns Bayesian optimizer 
@@ -167,7 +252,7 @@ class Experiment:
         '''
         data = {} # Data dictionary to be saved
             
-        prange = {p:(r['lo'],r['hi'],r['res']) for p,r in self.rng.items() if r['lo'] < r['hi']}
+        prange = self.dbo_ranges
         # Initialize optimizer and utility function 
         dbo = DiscreteBayesianOptimization(f=None,
                                           prange=prange,
@@ -226,8 +311,6 @@ class Experiment:
         batch: list of dictionaries containing parameters for each variable in the experiment 
         '''
         batch = []
-        # Convert self.rng to tuple format
-        prange = {p:(r['lo'],r['hi'],r['res']) for p,r in self.rng.items()}
         # Initialize optimizer and utility function 
         fname = os.path.join(self.directory_path,'optimizer.pickle')
         if os.path.isfile(fname):
@@ -245,6 +328,8 @@ class Experiment:
 
         # Generate batch of suggestions
         batch = dbo.suggest(utility,sampler=sampler,n_acqs=batch_size,fit_gp=False,**kwargs)
+        for point in batch:
+            self.complement_mapping(point)
         return batch
     
     def register_mini_batch(self, mini_batch):
@@ -369,6 +454,7 @@ class Experiment:
                                 else:
                                     point[comp] = 0
                                 point[comp] = 0
+                    self.complement_mapping(point)
                     _points.append(point)
 
         if skipped != 0:
@@ -482,6 +568,7 @@ class Experiment:
                             else:
                                 point[comp] = 0
                             #print(f"Warning! {comp} was not found in the file {filename}")
+                    self.complement_mapping(point)
                     self.points.append(point)
 
             if skipped != 0:
@@ -518,8 +605,8 @@ def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=F
 
     start_time = time()
     ### Choose your own adventure ###
-    #batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='KMBBO',**KMBBO_args)
-    batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='greedy', **greedy_args)
+    batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='KMBBO',**KMBBO_args)
+    #batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='greedy', **greedy_args)
     ### Choose your own adventure ###
     print("Batch was generated in {:.2f} minutes. Submitting.\n".format((time() - start_time) / 60))
     if(perform_clean):
@@ -588,15 +675,15 @@ def watch_queue(multiprocessing=1):
 
 
 if __name__ == "__main__":
-    try:
-        p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
-        p1.start()
-        sleep(Experiment.SLEEP_DELAY)
-        p2 = multiprocessing.Process(target=watch_queue, args=(12,)) #CPUs used for batch generation
-        p2.start()
-    except:
-        tb = traceback.format_exc()
-        print(tb)
+#     try:
+#         p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
+#         p1.start()
+#         sleep(Experiment.SLEEP_DELAY)
+#         p2 = multiprocessing.Process(target=watch_queue, args=(12,)) #CPUs used for batch generation
+#         p2.start()
+#     except:
+#         tb = traceback.format_exc()
+#         print(tb)
 
 #     ### DEBUGINING LINES ###
 #     watch_queue(4)
@@ -605,4 +692,5 @@ if __name__ == "__main__":
 #     sleep(Experiment.SLEEP_DELAY)
 #     p2 = multiprocessing.Process(target=watch_queue, args=(4,)) #CPUs used for batch generation
 #     p2.start()
+    watch_queue(10)
 #     ### DEBUGING LINES ###
