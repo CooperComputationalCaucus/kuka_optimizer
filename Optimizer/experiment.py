@@ -209,7 +209,7 @@ class Experiment:
         
         keys = [key for key in point]
         if any(key.split('_')[0]=='!Complement!' for key in keys): 
-            for key in key:
+            for key in keys:
                 if key.split('_')[0]!='!Complement!': continue
                 dict = self.complements[key]
                 val = point.pop(key)

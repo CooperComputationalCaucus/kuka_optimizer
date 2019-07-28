@@ -13,6 +13,7 @@ from sklearn.gaussian_process.kernels import Matern
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 import pandas as pd
+import re
 
 
 class Queue:
@@ -335,6 +336,64 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         random_state = self._random_state
         
         # Get size and max amount from single constraint
+        s = self.constraints[0]
+        p = re.compile('(\d+)\]<0.5')
+        ms = p.findall(s)
+        # Count variables and constrained variables
+        n_var = self.space.dim
+        n_constrained_var= 0 
+        for i in range(n_var):
+            if 'x[{}]'.format(i) in s: n_constrained_var +=1
+        # Initialize randoms
+        assert bounds.shape[0] == n_var, "Phil's an asshole. Check your understanding of your code" #TEST
+        x = np.zeros((n_points, n_var))
+        # Get max value of liquid constraint
+        try:
+            max_val = float(s.split(' ')[0])
+        except:
+            raise SyntaxError("Is your liquid constraint lead by the max volume? : {}".format(s))
+        
+        # Generator for complements that are consistent with max
+        # followed by simplex sampling for constrained
+        # followed by random sampling for unconstrained
+        if ms:
+            complements = [int(m) for m in ms]
+            for i in range(n_points):
+                rem_max_val = -1 
+                while rem_max_val<=0:
+                    rem_max_val = max_val
+                    for complement in complements:
+                        x[i,complement] = random_state.uniform(bounds[complement, 0], bounds[complement, 1])
+                        # Extract regex
+                        p = re.compile('- \(\(x\[{:d}\]<0.5\) \* \(\(\(0.5 - x\[{:d}\]\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) - '
+                                       '\(\(x\[{:d}+\]>=0.5\) \* \(\(\(x\[{:d}\] - 0.5\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \)'.format(complement,complement,complement,complement))
+                        reduction = p.findall(s)[0]
+                        rem_max_val += pd.eval(reduction,local_dict={'x':x[i,:]})
+                rnd = get_rnd_quantities(rem_max_val,n_constrained_var,random_state)
+                cnt = 0
+                for j in range(n_var): 
+                    if j in complements:
+                        continue
+                    elif 'x[{}]'.format(j) in self.constraints[0]:
+                        x[i,j]  = min(rnd[cnt],bounds[j, 1])
+                        cnt+=1
+                    else:
+                        x[i,j] = random_state.uniform(bounds[j, 0], bounds[j, 1])            
+        else:
+            for i in range(n_points):
+                cnt = 0
+                rnd = get_rnd_quantities(max_val,n_constrained_var,random_state)
+                for j in range(n_var):
+                    if 'x[{}]'.format(j) in self.constraints[0]:
+                        x[i,j]  = min(rnd[cnt],bounds[j, 1])
+                        cnt+=1
+                    else:
+                        x[i,j] = random_state.uniform(bounds[j, 0], bounds[j, 1])
+        if bin: x = np.floor((x-bounds[:,0])/steps)*steps+bounds[:,0]
+        return x
+        
+        '''
+        # The old way, preserved in comment for posterity
         n_constrained_var = 0
         max_amount = self.constraints[0].replace('-','')
         for i in range(len(self.space.keys)):
@@ -343,6 +402,7 @@ class DiscreteBayesianOptimization(BayesianOptimization):
                 max_amount = max_amount.replace('x[{}]'.format(i),'')
         
         max_amount = float(max_amount)
+
         
         # Generate randoms and update sample
         x = np.zeros((n_points, bounds.shape[0]))
@@ -358,6 +418,7 @@ class DiscreteBayesianOptimization(BayesianOptimization):
             
         if bin: x = np.floor((x-bounds[:,0])/steps)*steps+bounds[:,0]
         return x
+        '''
     
     def suggest(self, utility_function,sampler='greedy',fit_gp=True,**kwargs):
         """
