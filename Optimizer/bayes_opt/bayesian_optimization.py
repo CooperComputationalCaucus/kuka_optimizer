@@ -370,34 +370,6 @@ class DiscreteBayesianOptimization(BayesianOptimization):
                         x[i,j] = random_state.uniform(bounds[j, 0], bounds[j, 1])
         if bin: x = np.floor((x-bounds[:,0])/steps)*steps+bounds[:,0]
         return x
-        
-        '''
-        # The old way, preserved in comment for posterity
-        n_constrained_var = 0
-        max_amount = self.constraints[0].replace('-','')
-        for i in range(len(self.space.keys)):
-            if 'x[{}]'.format(i) in self.constraints[0]: 
-                n_constrained_var+=1
-                max_amount = max_amount.replace('x[{}]'.format(i),'')
-        
-        max_amount = float(max_amount)
-
-        
-        # Generate randoms and update sample
-        x = np.zeros((n_points, bounds.shape[0]))
-        for i in range(n_points):
-            cnt = 0
-            rnd = get_rnd_quantities(max_amount,n_constrained_var,random_state)
-            for j in range(bounds.shape[0]):
-                if 'x[{}]'.format(j) in self.constraints[0]:
-                    x[i,j]  = min(rnd[cnt],bounds[j, 1])
-                    cnt+=1
-                else:
-                    x[i,j] = random_state.uniform(bounds[j, 0], bounds[j, 1])
-            
-        if bin: x = np.floor((x-bounds[:,0])/steps)*steps+bounds[:,0]
-        return x
-        '''
     
     def suggest(self, utility_function,sampler='greedy',fit_gp=True,**kwargs):
         """
