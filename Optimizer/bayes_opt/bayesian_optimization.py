@@ -324,7 +324,6 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         for i in range(n_var):
             if 'x[{}]'.format(i) in s: n_constrained_var +=1
         # Initialize randoms
-        assert bounds.shape[0] == n_var, "Phil's an asshole. Check your understanding of your code" #TEST
         x = np.zeros((n_points, n_var))
         # Get max value of liquid constraint
         try:
