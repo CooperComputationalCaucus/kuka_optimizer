@@ -307,27 +307,6 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         ----------
         n_points: integer number of points to generate
         '''
-        '''
-        #TODO: Phil and Vladimir finish implemeting this 
-        import re
-        s='4.5 - ((x[0]<0.5)* (((0.5 - x[0])/0.5) * (4.400000-0.000000) + 0.000000) ) - ((x[0]>=0.5) * (((x[0] - 0.5)/0.5) * (4.400000-0.000000) + 0.000000) ) - x[8] - x[6] - x[9] - x[7] - x[1] - x[4] - x[3] - x[10] - x[2] - x[5]'
-
-        p = re.compile('(\d+)\]<0.5')
-        
-        ms= p.findall(s)
-        complements = [int(m) for m in ms] #[0]
-        
-        
-        x=np.zeros(size)
-        #allowing for multiple x[]'s that are preselected 
-        while max_val>0:
-            x[0]=np.random.uniform
-            fun(x) --> max_val (4.5-g(x[0]))
-        
-        y = sample_simplex(size-1)
-        x[1:]=y
-        
-        '''
         if len(self.constraints) != 1:
             raise ValueError("Too many constraints for constrained random number generator")
         
