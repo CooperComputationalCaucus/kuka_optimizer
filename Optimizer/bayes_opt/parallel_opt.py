@@ -353,6 +353,9 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
         # See if success
         if not res.success:
             continue
+        # Double check on constraints
+        for dict in instance.get_constraint_dict():
+            if dict['fun'](res.x)<0: continue
 
         # Attempt to store it if better than previous maximum.
         # If it is new point, delete and replace threshold value
