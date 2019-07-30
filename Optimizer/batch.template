@@ -4,5 +4,5 @@ gc_method:constant-HS rc
 purge_time:60
 cap_vials:1
 
-SampleIndex,P10-CA1,TEOA-0-5VV,water,NaCl-1M,NaNO3-1M,Na2SO4-1M,Na2CO3-1M,NaHCO3-1M,Na2PO4-0-25M,Al2SO43-0-5M,MgSO4-0-5M,Li2SO4-2M,Rb2SO4-0-75M,K2SO4-0-5M,NH4Cl-4M
-${idx},${P10-CA1},${TEOA-0-5VV},${water},${NaCl-1M},${NaNO3-1M},${Na2SO4-1M},${Na2CO3-1M},${NaHCO3-1M},${Na2PO4-0-25M},${Al2SO43-0-5M},${MgSO4-0-5M},${Li2SO4-2M},${Rb2SO4-0-75M},${K2SO4-0-5M},${NH4Cl-4M}
+SampleIndex,P10-CA1,TEOA-0-5VV,water,Li2SO4-2M,Rb2SO4-0-75M,K2SO4-0-5M,HCl-10M,NaOH-10M
+${idx},${P10-CA1},${TEOA-0-5VV},${water},${Li2SO4-2M},${Rb2SO4-0-75M},${K2SO4-0-5M},${HCl-10M},${NaOH-10M}
