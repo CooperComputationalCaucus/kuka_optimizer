@@ -4,6 +4,9 @@ from scipy.stats import norm
 from scipy.optimize import minimize
 from multiprocessing import Pool
 import time
+import re
+import itertools
+import pandas as pd
 
 from .util import UtilityFunction,ensure_rng
 from .target_space import _hashable
@@ -62,8 +65,75 @@ class LocalConstrainedOptimizer():
                        method=self.method,
                        constraints=self.constraints)
         res.fun=[-1*res.fun]
-        return res    
+        return res
+    
+class LocalComplementOptimizer(LocalConstrainedOptimizer):
+    ''' Class of helper functions for optimization including complement variables'''     
+    def __init__(self,ac,gp,y_max,bounds,method="SLSQP",constraints=[]):
+        super().__init__(ac,gp,y_max,bounds)
+        self.constraints=constraints #Array like constraints
+        self.constraint_sets = []
+        
+        # Set up complemets
+        ms = []
+        p = re.compile('(\d+)\]<0.5')
+        for s in self.constraints:
+            ms.extend(p.findall(s))
+        #Shifted to avoid sign issue with 0
+        complements = [int(m)+1 for m in ms]
+        complement_assignments = list(itertools.product(*((x, -x) for x in complements)))
+        for assignment in complement_assignments:
+            dicts = []
+            for constraint in self.constraints:
+                dicts.append(self.relax_complement_constraint(constraint,assignment))
+            self.constraint_sets.append(dicts)
+            
 
+    def relax_complement_constraint(self,constraint,assignment):
+        '''
+        Takes in string constraint containing complement, and removes one 
+        term and all logicals to create continuous function. 
+        Term removed depends on sign in assignment
+        Arguments
+        ==========
+        constraint: string, array style constraint
+        assignment: tuple, postive or negative integers to dictate removal of complement constraints
+            These should be 1+ index in the array to avoid issue with 0=-0
+            Negative will remove the condition where x[i] >=0.5
+            Positive will remove the condition where x[i] < 0.5
+        '''
+        new_constraint = constraint
+        for i in assignment:
+            if i<0:
+                p = re.compile('- \(\(x\[{:d}+\]>=0.5\) \* \(\(\(x\[{:d}\] - 0.5\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(abs(i+1),abs(i+1)))
+                new_constraint = p.sub('',new_constraint)
+                p = re.compile('\(x\[{:d}\]<0.5\) \* '.format(abs(i+1)))
+                new_constraint = p.sub('',new_constraint)
+            else:
+                p = re.compile('- \(\(x\[{:d}\]<0.5\) \* \(\(\(0.5 - x\[{:d}\]\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(abs(i-1),abs(i-1)))
+                new_constraint = p.sub('',new_constraint)
+                p = re.compile('\(x\[{:d}+\]>=0.5\) \* '.format(abs(i-1)))
+                new_constraint = p.sub('',new_constraint)
+        funcs=[]
+        st = "def f_{}(x): return pd.eval({})\nfuncs.append(f_{})".format(1,constraint,1)
+        exec(st)
+        dict = {'type': 'ineq','fun':funcs[0]}
+        return dict
+        
+    def maximizer(self,x_try):
+        ''' Overide maximizer to generate multiple options for each complement'''
+        results = []
+        for constraint_set in self.constraint_sets:
+            res = minimize(self.func_max,
+                           x_try.reshape(1, -1),
+                           bounds=self.bounds,
+                           method=self.method,
+                           constraints=constraint_set)
+            res.fun=[-1*res.fun]
+            results.append(res)
+        results.sort(key=lambda x: x.fun[0],reverse=True)
+        return results[0]
+        
 def disc_acq_max(ac, instance, n_acqs=1, n_warmup=100000, n_iter=250, multiprocessing=1):
     """
     A function to find the maximum of the acquisition function
@@ -254,7 +324,7 @@ def disc_acq_KMBBO(ac, instance, n_acqs=1, n_slice=200, n_warmup=100000, n_iter=
     assert len(acqs) == n_acqs, "k-means clustering is not distinct in discretized space!"     
     return [key for key in acqs.keys()]                         
     
-def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250, multiprocessing=1):    
+def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250, multiprocessing=1, complements=False):    
     """
     A function to find the maximum of the acquisition function subject to inequality constraints
 
@@ -270,6 +340,8 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
     n_acqs: Integer number of acquisitions to take from acquisition function ac.
     n_warmup: number of times to randomly sample the aquisition function
     n_iter: number of times to run scipy.minimize
+    multiprocessing: integer, number of processes to use
+    complements: logical, whether or not to consider complements
 
     Returns
     -------
@@ -287,7 +359,10 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
     random_state = instance._random_state
     
     # Class of helper functions for minimization (Class needs to be picklable)
-    lo = LocalConstrainedOptimizer(ac,gp,y_max,bounds,constraints=instance.get_constraint_dict())
+    if complements:
+        lo = LocalComplementOptimizer(ac,gp,y_max,bounds,constraints=instance.constraints)
+    else:
+        lo = LocalConstrainedOptimizer(ac,gp,y_max,bounds,constraints=instance.get_constraint_dict())
 
     # Warm up with random points
     x_tries = instance.constrained_rng(n_warmup,bin=True)

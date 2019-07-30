@@ -311,6 +311,8 @@ class Experiment:
         batch: list of dictionaries containing parameters for each variable in the experiment 
         '''
         batch = []
+        # Update kwargs 
+        kwargs['complements'] = bool(self.complements)
         # Initialize optimizer and utility function 
         fname = os.path.join(self.directory_path,'optimizer.pickle')
         if os.path.isfile(fname):
@@ -595,7 +597,7 @@ class Experiment:
         return uuid.uuid4()
 
 
-def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=False):
+def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=False,sampler='KMBBO'):
 
     KMBBO_args = {'multiprocessing': multiprocessing,
                   'n_slice':500}
@@ -605,9 +607,13 @@ def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=F
 
     start_time = time()
     ### Choose your own adventure ###
-    batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='KMBBO',**KMBBO_args)
-    #batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='greedy', **greedy_args)
-    ### Choose your own adventure ###
+    if sampler =='KMBBO':
+        batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='KMBBO',**KMBBO_args)
+    elif sampler == 'greedy':
+        batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='greedy', **greedy_args)
+    else:
+        return ValueError("No sampler named {}".format(sampler))
+    
     print("Batch was generated in {:.2f} minutes. Submitting.\n".format((time() - start_time) / 60))
     if(perform_clean):
         exp.clean_queue()
@@ -650,7 +656,7 @@ def watch_completed(lag_time=900):
             print("New model trained. Old model has been saved as ./models/state_{}.pickle".format(exp.batch_number-1))
         sleep(Experiment.SLEEP_DELAY)
 
-def watch_queue(multiprocessing=1):
+def watch_queue(multiprocessing=1,sampler='KMBBO'):
     '''
     Monitors runqueue folder, and generates a batch based on existing model 
     or creates a fresh model if none exists. 
@@ -664,33 +670,34 @@ def watch_queue(multiprocessing=1):
             print("There are less than required files in the queue. Generating a new batches.\n", end='Time is ')
             print (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             missing_files = exp.BATCH_FILES - exp.queue_size()
-            clean_and_generate(exp,missing_files, multiprocessing, False)
+            clean_and_generate(exp,missing_files, multiprocessing, False, sampler)
         # case 2: new model
         elif exp.new_model_available():
             print("A new model has been generated. Generating new batches.\n", end='Time is ')
             print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            clean_and_generate(exp,exp.BATCH_FILES, multiprocessing, True)
+            clean_and_generate(exp,exp.BATCH_FILES, multiprocessing, True, sampler)
         sleep(Experiment.SLEEP_DELAY)
 
 
 
 if __name__ == "__main__":
-    try:
-        p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
-        p1.start()
-        sleep(Experiment.SLEEP_DELAY)
-        p2 = multiprocessing.Process(target=watch_queue, args=(12,)) #CPUs used for batch generation
-        p2.start()
-    except:
-        tb = traceback.format_exc()
-        print(tb)
+    #TODO: Add args to watch_queue for sampler
+#     try:
+#         p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
+#         p1.start()
+#         sleep(Experiment.SLEEP_DELAY)
+#         p2 = multiprocessing.Process(target=watch_queue, args=(12,'KMBBO',)) #CPUs used for batch generation and sampler choice
+#         p2.start()
+#     except:
+#         tb = traceback.format_exc()
+#         print(tb)
 
 #     ### DEBUGINING LINES ###
-#     watch_queue(4)
 #     p1 = multiprocessing.Process(target=watch_completed, args=(900,)) #Delay for model building when finding new data
 #     p1.start()
 #     sleep(Experiment.SLEEP_DELAY)
-#     p2 = multiprocessing.Process(target=watch_queue, args=(4,)) #CPUs used for batch generation
+#     p2 = multiprocessing.Process(target=watch_queue, args=(4,'KMBBO',)) #CPUs used for batch generation
 #     p2.start()
-#     watch_queue(10)
+    ### IN SERIAL ###
+    watch_queue(4,'greedy')
 #     ### DEBUGING LINES ###
