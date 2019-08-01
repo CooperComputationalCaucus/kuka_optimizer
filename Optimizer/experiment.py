@@ -312,7 +312,7 @@ class Experiment:
         '''
         batch = []
         # Update kwargs 
-        kwargs['complements'] = bool(self.complements)
+        if sampler=='greedy': kwargs['complements'] = bool(self.complements)
         # Initialize optimizer and utility function 
         fname = os.path.join(self.directory_path,'optimizer.pickle')
         if os.path.isfile(fname):
