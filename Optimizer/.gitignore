@@ -90,3 +90,4 @@ completed/*
 #Exceptions to the above#
 ######################## (use !)
 /optimizer.pickle
+/optimizer.state
