@@ -603,7 +603,7 @@ def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=F
                   'n_slice':500}
     greedy_args = {'multiprocessing': multiprocessing,
                    'n_iter' : 250,
-                   'n_warmup': 1000}
+                   'n_warmup': 10000}
 
     start_time = time()
     ### Choose your own adventure ###
@@ -681,16 +681,15 @@ def watch_queue(multiprocessing=1,sampler='KMBBO'):
 
 
 if __name__ == "__main__":
-    #TODO: Add args to watch_queue for sampler
-#     try:
-#         p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
-#         p1.start()
-#         sleep(Experiment.SLEEP_DELAY)
-#         p2 = multiprocessing.Process(target=watch_queue, args=(12,'KMBBO',)) #CPUs used for batch generation and sampler choice
-#         p2.start()
-#     except:
-#         tb = traceback.format_exc()
-#         print(tb)
+    try:
+        p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
+        p1.start()
+        sleep(Experiment.SLEEP_DELAY)
+        p2 = multiprocessing.Process(target=watch_queue, args=(12,'KMBBO',)) #CPUs used for batch generation and sampler choice
+        p2.start()
+    except:
+        tb = traceback.format_exc()
+        print(tb)
 
 #     ### DEBUGINING LINES ###
 #     p1 = multiprocessing.Process(target=watch_completed, args=(900,)) #Delay for model building when finding new data
@@ -698,6 +697,6 @@ if __name__ == "__main__":
 #     sleep(Experiment.SLEEP_DELAY)
 #     p2 = multiprocessing.Process(target=watch_queue, args=(4,'KMBBO',)) #CPUs used for batch generation
 #     p2.start()
-    ### IN SERIAL ###
-    watch_queue(4,'greedy')
+#     ### IN SERIAL ###
+#     watch_queue(4,'greedy')
 #     ### DEBUGING LINES ###
