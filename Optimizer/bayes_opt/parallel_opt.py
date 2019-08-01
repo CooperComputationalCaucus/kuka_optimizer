@@ -68,23 +68,23 @@ class LocalConstrainedOptimizer():
         return res
     
 class LocalComplementOptimizer(LocalConstrainedOptimizer):
-    ''' Class of helper functions for optimization including complement variables'''     
-    def __init__(self,ac,gp,y_max,bounds,method="SLSQP",constraints=[]):
-        super().__init__(ac,gp,y_max,bounds)
-        self.constraints=constraints #Array like constraints
+    ''' Class of helper functions for optimization including complement variables. TAKES STRING CONSTRAINTS NOT FUNCTIONS'''     
+    def __init__(self,ac,gp,y_max,bounds,method="SLSQP",constraints=[],text_constraints=[]):
+        super().__init__(ac,gp,y_max,bounds,method,constraints)
+        self.text_constraints=text_constraints #Array like constraints
         self.constraint_sets = []
         
         # Set up complemets
         ms = []
         p = re.compile('(\d+)\]<0.5')
-        for s in self.constraints:
+        for s in self.text_constraints:
             ms.extend(p.findall(s))
         #Shifted to avoid sign issue with 0
         complements = [int(m)+1 for m in ms]
         complement_assignments = list(itertools.product(*((x, -x) for x in complements)))
         for assignment in complement_assignments:
             dicts = []
-            for constraint in self.constraints:
+            for constraint in self.text_constraints:
                 dicts.append(self.relax_complement_constraint(constraint,assignment))
             self.constraint_sets.append(dicts)
             
@@ -105,17 +105,17 @@ class LocalComplementOptimizer(LocalConstrainedOptimizer):
         new_constraint = constraint
         for i in assignment:
             if i<0:
-                p = re.compile('- \(\(x\[{:d}+\]>=0.5\) \* \(\(\(x\[{:d}\] - 0.5\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(abs(i+1),abs(i+1)))
+                p = re.compile('- \(\(x\[{:d}+\]>=0.5\) \* \(\(\(x\[{:d}\] - 0.5\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \)'.format(abs(i+1),abs(i+1)))
                 new_constraint = p.sub('',new_constraint)
                 p = re.compile('\(x\[{:d}\]<0.5\) \* '.format(abs(i+1)))
                 new_constraint = p.sub('',new_constraint)
             else:
-                p = re.compile('- \(\(x\[{:d}\]<0.5\) \* \(\(\(0.5 - x\[{:d}\]\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(abs(i-1),abs(i-1)))
+                p = re.compile('- \(\(x\[{:d}\]<0.5\) \* \(\(\(0.5 - x\[{:d}\]\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \)'.format(abs(i-1),abs(i-1)))
                 new_constraint = p.sub('',new_constraint)
                 p = re.compile('\(x\[{:d}+\]>=0.5\) \* '.format(abs(i-1)))
                 new_constraint = p.sub('',new_constraint)
         funcs=[]
-        st = "def f_{}(x): return pd.eval({})\nfuncs.append(f_{})".format(1,constraint,1)
+        st = "def f_{}(x): return pd.eval({})\nfuncs.append(f_{})".format(1,new_constraint,1)
         exec(st)
         dict = {'type': 'ineq','fun':funcs[0]}
         return dict
@@ -130,8 +130,12 @@ class LocalComplementOptimizer(LocalConstrainedOptimizer):
                            method=self.method,
                            constraints=constraint_set)
             res.fun=[-1*res.fun]
+            tmp=False
+            for dict in self.constraints:
+                if dict['fun'](res.x)<0: tmp=True
+            if tmp: res.success=False
             results.append(res)
-        results.sort(key=lambda x: x.fun[0],reverse=True)
+        results.sort(key=lambda x: x.fun[0],reverse=True)  
         return results[0]
         
 def disc_acq_max(ac, instance, n_acqs=1, n_warmup=100000, n_iter=250, multiprocessing=1):
@@ -360,7 +364,7 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
     
     # Class of helper functions for minimization (Class needs to be picklable)
     if complements:
-        lo = LocalComplementOptimizer(ac,gp,y_max,bounds,constraints=instance.constraints)
+        lo = LocalComplementOptimizer(ac,gp,y_max,bounds,constraints=instance.get_constraint_dict(),text_constraints=instance.constraints)
     else:
         lo = LocalConstrainedOptimizer(ac,gp,y_max,bounds,constraints=instance.get_constraint_dict())
 
@@ -429,8 +433,10 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
         if not res.success:
             continue
         # Double check on constraints
+        tmp = False
         for dict in instance.get_constraint_dict():
-            if dict['fun'](res.x)<0: continue
+            if dict['fun'](res.x)<0: tmp=True
+        if tmp: continue
 
         # Attempt to store it if better than previous maximum.
         # If it is new point, delete and replace threshold value
