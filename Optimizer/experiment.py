@@ -19,7 +19,7 @@ import math
 class Experiment:
     MINI_BATCH = 16
     BATCH = 48      
-    BATCH_FILES = 3 #number of files that we want to see in the queue, should be BATCH/BATCH_FILES = MINI_BATCH
+    BATCH_FILES = 6 #number of files that we want to see in the queue, should be BATCH/BATCH_FILES = MINI_BATCH
     SLEEP_DELAY = 5 #delay in seconds before querying the queue folder again
     
     directory_path = './'
