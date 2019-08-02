@@ -612,7 +612,7 @@ def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=F
     elif sampler == 'greedy':
         batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='greedy', **greedy_args)
     else:
-        return ValueError("No sampler named {}".format(sampler))
+        raise ValueError("No sampler named {}".format(sampler))
     
     print("Batch was generated in {:.2f} minutes. Submitting.\n".format((time() - start_time) / 60))
     if(perform_clean):
