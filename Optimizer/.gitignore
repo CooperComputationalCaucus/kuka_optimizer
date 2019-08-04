@@ -86,6 +86,7 @@ tests/pmm_scratch.ipynb
 running/*
 runqueue/*
 completed/*
+.idea/*
 
 #Exceptions to the above#
 ######################## (use !)
