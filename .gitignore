@@ -60,7 +60,8 @@ thirdparty/opencv/*
 
 **/.idea/workspace.xml
 
-.idea/ 
+.idea/
+Optimizer/.idea/*
 /.DS_Store
 /.classpath
 /.project
