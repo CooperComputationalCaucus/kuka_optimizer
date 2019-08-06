@@ -685,7 +685,7 @@ if __name__ == "__main__":
         p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
         p1.start()
         sleep(Experiment.SLEEP_DELAY)
-        p2 = multiprocessing.Process(target=watch_queue, args=(12,'KMBBO',)) #CPUs used for batch generation and sampler choice, Search strategy 
+        p2 = multiprocessing.Process(target=watch_queue, args=(12,'greedy',)) #CPUs used for batch generation and sampler choice, Search strategy
         p2.start()
     except:
         tb = traceback.format_exc()
