@@ -342,11 +342,18 @@ class DiscreteBayesianOptimization(BayesianOptimization):
                     rem_max_val = max_val
                     for complement in complements:
                         x[i,complement] = random_state.uniform(bounds[complement, 0], bounds[complement, 1])
-                        # Extract regex
-                        p = re.compile('- \(\(x\[{:d}\]<0.5\) \* \(\(\(0.5 - x\[{:d}\]\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) - '
-                                       '\(\(x\[{:d}+\]>=0.5\) \* \(\(\(x\[{:d}\] - 0.5\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \)'.format(complement,complement,complement,complement))
-                        reduction = p.findall(s)[0]
-                        rem_max_val += pd.eval(reduction,local_dict={'x':x[i,:]})
+                        # Extract regex, includes two options for ordering issues
+                        reductions = []
+                        p = re.compile(
+                            '- \(\(x\[{:d}\]<0.5\) \* \(\(\(0.5 - x\[{:d}\]\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(
+                                complement,complement))
+                        reductions.append(p.findall(s)[0])
+                        p = re.compile(
+                            '- \(\(x\[{:d}+\]>=0.5\) \* \(\(\(x\[{:d}\] - 0.5\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(
+                                complement, complement))
+                        reductions.append(p.findall(s)[0])
+                        for reduction in reductions:
+                            rem_max_val += pd.eval(reduction,local_dict={'x':x[i,:]})
                 rnd = get_rnd_quantities(rem_max_val,n_constrained_var,random_state)
                 cnt = 0
                 for j in range(n_var): 

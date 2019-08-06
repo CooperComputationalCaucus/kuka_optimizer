@@ -698,5 +698,9 @@ if __name__ == "__main__":
 #     p2 = multiprocessing.Process(target=watch_queue, args=(4,'KMBBO',)) #CPUs used for batch generation
 #     p2.start()
 #     ### IN SERIAL ###
+#     try:
+#         os.remove('optimizer.pickle') #Clean start
+#     except OSError:
+#         pass
 #     watch_queue(4,'greedy')
 #     ### DEBUGING LINES ###
