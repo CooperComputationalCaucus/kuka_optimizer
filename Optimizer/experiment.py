@@ -472,8 +472,9 @@ class Experiment:
         for key, value in point.iteritems():
             #case 0: sample is leaking
             if key == 'oxygen_evolution_micromol' and value > 5 :
-                continue
-                
+                print('skipping leaky point ' + point['Name'])
+                return True
+
             #case 1: standard column that is not representing a compound
             if (key in {'SampleIndex', 'SampleNumber', 'Name', 'vial_capped', 'gc_well_number',
                             'hydrogen_evolution', 'oxygen_evolution', 'hydrogen_evolution_micromol',
@@ -601,7 +602,7 @@ class Experiment:
         return uuid.uuid4()
 
 
-def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=False,sampler='KMBBO'):
+def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=False,sampler='greedy'):
 
     KMBBO_args = {'multiprocessing': multiprocessing,
                   'n_slice':500}
@@ -660,7 +661,7 @@ def watch_completed(lag_time=900):
             print("New model trained. Old model has been saved as ./models/state_{}.pickle".format(exp.batch_number-1))
         sleep(Experiment.SLEEP_DELAY)
 
-def watch_queue(multiprocessing=1,sampler='KMBBO'):
+def watch_queue(multiprocessing=1,sampler='greedy'):
     '''
     Monitors runqueue folder, and generates a batch based on existing model 
     or creates a fresh model if none exists. 
