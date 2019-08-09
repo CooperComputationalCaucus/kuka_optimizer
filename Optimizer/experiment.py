@@ -470,6 +470,10 @@ class Experiment:
                     Returns false if there is any compounds in the sample that are not under consideration
         '''
         for key, value in point.iteritems():
+            #case 0: sample is leaking
+            if key == 'oxygen_evolution_micromol' and value > 5 :
+                continue
+                
             #case 1: standard column that is not representing a compound
             if (key in {'SampleIndex', 'SampleNumber', 'Name', 'vial_capped', 'gc_well_number',
                             'hydrogen_evolution', 'oxygen_evolution', 'hydrogen_evolution_micromol',
