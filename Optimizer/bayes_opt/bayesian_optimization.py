@@ -13,6 +13,7 @@ from sklearn.gaussian_process.kernels import Matern
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 import pandas as pd
+import re
 
 
 class Queue:
@@ -306,7 +307,6 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         ----------
         n_points: integer number of points to generate
         '''
-        
         if len(self.constraints) != 1:
             raise ValueError("Too many constraints for constrained random number generator")
         
@@ -315,27 +315,65 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         random_state = self._random_state
         
         # Get size and max amount from single constraint
-        n_constrained_var = 0
-        max_amount = self.constraints[0].replace('-','')
-        for i in range(len(self.space.keys)):
-            if 'x[{}]'.format(i) in self.constraints[0]: 
-                n_constrained_var+=1
-                max_amount = max_amount.replace('x[{}]'.format(i),'')
+        s = self.constraints[0]
+        p = re.compile('(\d+)\]<0.5')
+        ms = p.findall(s)
+        # Count variables and constrained variables
+        n_var = self.space.dim
+        n_constrained_var= 0 
+        for i in range(n_var):
+            if 'x[{}]'.format(i) in s: n_constrained_var +=1
+        # Initialize randoms
+        x = np.zeros((n_points, n_var))
+        # Get max value of liquid constraint
+        try:
+            max_val = float(s.split(' ')[0])
+        except:
+            raise SyntaxError("Is your liquid constraint lead by the max volume? : {}".format(s))
         
-        max_amount = float(max_amount)
-        
-        # Generate randoms and update sample
-        x = np.zeros((n_points, bounds.shape[0]))
-        for i in range(n_points):
-            cnt = 0
-            rnd = get_rnd_quantities(max_amount,n_constrained_var,random_state)
-            for j in range(bounds.shape[0]):
-                if 'x[{}]'.format(j) in self.constraints[0]:
-                    x[i,j]  = min(rnd[cnt],bounds[j, 1])
-                    cnt+=1
-                else:
-                    x[i,j] = random_state.uniform(bounds[j, 0], bounds[j, 1])
-            
+        # Generator for complements that are consistent with max
+        # followed by simplex sampling for constrained
+        # followed by random sampling for unconstrained
+        if ms:
+            complements = [int(m) for m in ms]
+            for i in range(n_points):
+                rem_max_val = -1 
+                while rem_max_val<=0:
+                    rem_max_val = max_val
+                    for complement in complements:
+                        x[i,complement] = random_state.uniform(bounds[complement, 0], bounds[complement, 1])
+                        # Extract regex, includes two options for ordering issues
+                        reductions = []
+                        p = re.compile(
+                            '- \(\(x\[{:d}\]<0.5\) \* \(\(\(0.5 - x\[{:d}\]\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(
+                                complement,complement))
+                        reductions.append(p.findall(s)[0])
+                        p = re.compile(
+                            '- \(\(x\[{:d}+\]>=0.5\) \* \(\(\(x\[{:d}\] - 0.5\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(
+                                complement, complement))
+                        reductions.append(p.findall(s)[0])
+                        for reduction in reductions:
+                            rem_max_val += pd.eval(reduction,local_dict={'x':x[i,:]})
+                rnd = get_rnd_quantities(rem_max_val,n_constrained_var,random_state)
+                cnt = 0
+                for j in range(n_var): 
+                    if j in complements:
+                        continue
+                    elif 'x[{}]'.format(j) in self.constraints[0]:
+                        x[i,j]  = min(rnd[cnt],bounds[j, 1])
+                        cnt+=1
+                    else:
+                        x[i,j] = random_state.uniform(bounds[j, 0], bounds[j, 1])            
+        else:
+            for i in range(n_points):
+                cnt = 0
+                rnd = get_rnd_quantities(max_val,n_constrained_var,random_state)
+                for j in range(n_var):
+                    if 'x[{}]'.format(j) in self.constraints[0]:
+                        x[i,j]  = min(rnd[cnt],bounds[j, 1])
+                        cnt+=1
+                    else:
+                        x[i,j] = random_state.uniform(bounds[j, 0], bounds[j, 1])
         if bin: x = np.floor((x-bounds[:,0])/steps)*steps+bounds[:,0]
         return x
     
@@ -354,7 +392,8 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         list length n_acqs of dictionary style parameters 
         """
         if len(self._space) == 0:
-            return [self._space.array_to_params(self.space._bin(self._space.random_sample(constraints=self.get_constraint_dict()))) for _ in range(kwargs.get('n_acqs',1))]
+            return [self._space.array_to_params(x) for x in self.constrained_rng(kwargs.get('n_acqs',1), bin=True)]
+            #return [self._space.array_to_params(self.space._bin(self._space.random_sample(constraints=self.get_constraint_dict()))) for _ in range(kwargs.get('n_acqs',1))]
 
         # Sklearn's GP throws a large number of warnings at times, but
         # we don't really need to see them here.
