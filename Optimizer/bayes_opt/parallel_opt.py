@@ -351,9 +351,6 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
     -------
     List of the arg maxs of the acquisition function.
     """
-    ### TEST SETTING  TO IGNORE INPUT ###
-    multiprocessing = 1
-    ### TEST SETTING  TO IGNORE INPUT ###
     start_time = time.time()
     # Inialization from instance
     gp = instance._gp
@@ -361,7 +358,7 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
     bounds = instance._space.bounds
     steps = instance._space.steps
     random_state = instance._random_state
-    
+
     # Class of helper functions for minimization (Class needs to be picklable)
     if complements:
         lo = LocalComplementOptimizer(ac,gp,y_max,bounds,constraints=instance.get_constraint_dict(),text_constraints=instance.constraints)
@@ -369,7 +366,12 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
         lo = LocalConstrainedOptimizer(ac,gp,y_max,bounds,constraints=instance.get_constraint_dict())
 
     # Warm up with random points
-    x_tries = instance.constrained_rng(n_warmup,bin=True)
+    if multiprocessing > 1:
+        with Pool(processes=multiprocessing) as pool:
+            results = pool.starmap(instance.constrained_rng, [(n_warmup//multiprocessing, True) for _ in range(multiprocessing)])
+        x_tries = np.vstack(results)
+    else:
+        x_tries = instance.constrained_rng(n_warmup,bin=True)
     
     
     # Apply constraints to initial tries
@@ -406,7 +408,12 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
     acq_threshold = sorted(acqs.items(), key=lambda t: (t[1],t[0]))[0]
    
     # Explore the parameter space more throughly
-    x_seeds = instance.constrained_rng(n_iter,bin=False)
+    if multiprocessing > 1:
+        with Pool(processes=multiprocessing) as pool:
+            results = pool.starmap(instance.constrained_rng, [(n_iter//multiprocessing, False) for _ in range(multiprocessing)])
+        x_seeds = np.vstack(results)
+    else:
+        x_seeds = instance.constrained_rng(n_iter,bin=False)
     
     # Ensure seeds satisfy initial constraints
     mask = np.ones((x_seeds.shape[0],),dtype=bool)
@@ -449,7 +456,7 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
             if len(acqs)>n_acqs:
                 del acqs[acq_threshold[0]]
                 acq_threshold = sorted(acqs.items(), key=lambda t: (t[1],t[0]))[0]
-        
+
         if time.time()-start_time > 0.5 * TIMEOUT_TIME:
             raise TimeoutError("Failure in greedy constrained optimizer."
                                " Check number gradient based initializations (n_iter).")
