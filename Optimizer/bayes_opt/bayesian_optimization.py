@@ -392,8 +392,10 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         list length n_acqs of dictionary style parameters 
         """
         if len(self._space) == 0:
-            return [self._space.array_to_params(x) for x in self.constrained_rng(kwargs.get('n_acqs',1), bin=True)]
-            #return [self._space.array_to_params(self.space._bin(self._space.random_sample(constraints=self.get_constraint_dict()))) for _ in range(kwargs.get('n_acqs',1))]
+            if self.constraints:
+                return [self._space.array_to_params(x) for x in self.constrained_rng(kwargs.get('n_acqs',1), bin=True)]
+            else:
+                return [self._space.array_to_params(self.space._bin(self._space.random_sample(constraints=self.get_constraint_dict()))) for _ in range(kwargs.get('n_acqs',1))]
 
         # Sklearn's GP throws a large number of warnings at times, but
         # we don't really need to see them here.
