@@ -214,7 +214,6 @@ class Experiment:
                 dict = self.complements[key]
                 val = point.pop(key)
                 if val<0.5:
-                    pass#A
                     a_val = ((0.5 - val)/0.5) * (dict['A_range']['hi']-dict['A_range']['lo']) + dict['A_range']['lo']
                     b_val = 0
                 else:
