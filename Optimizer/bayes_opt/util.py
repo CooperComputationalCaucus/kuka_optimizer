@@ -246,6 +246,8 @@ Bits related to sampling under constraints.
 def get_rnd_simplex(dimension,random_state):
     '''
     uniform point on a simplex, i.e. x_i >= 0 and sum of the coordinates is 1.
+    Donald B. Rubin, The Bayesian bootstrap Ann. Statist. 9, 1981, 130-134.
+    https://cs.stackexchange.com/questions/3227/uniform-sampling-from-a-simplex
     '''
     t = random_state.uniform(0, 1, dimension-1)
     t = np.append(t,[0,1])
@@ -256,13 +258,15 @@ def get_rnd_simplex(dimension,random_state):
 def get_rnd_quantities(max_amount, dimension, random_state):
     '''
     Get an array of quantities x_i>=0 which sum up to max_amount at most.
-    It is not uniform, since smaller quantities would be preferred, but for the
-    purpose of acquisition function it is irrelevant (can made uniform with weighted scaling).
+
+    This samples a unit simplex uniformly, then scales the sampling by a value m between  0 and max amount,
+    with a probability proportionate to the volume of a regular simplex with vector length m.
     '''
-    #FIXME: make sampling correctly uniform
-    return get_rnd_simplex(dimension,random_state) * random_state.uniform(0,max_amount)
+    r = random_state.uniform(0, 1)
+    m = (r * (max_amount**(dimension+1)))**(1/(dimension+1))
+    return get_rnd_simplex(dimension,random_state) * m
 
 if __name__ == "__main__":
     for i in range(10):
         a = get_rnd_quantities(5.0, 9, np.random.RandomState())
-        print(np.sum(a), np.max(a), sep='...')
+        print(np.sum(a), np.min(a), np.max(a), sep='...')
