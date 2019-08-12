@@ -259,11 +259,10 @@ def get_rnd_quantities(max_amount, dimension, random_state):
     It is not uniform, since smaller quantities would be preferred, but for the
     purpose of acquisition function it is irrelevant (can made uniform with weighted scaling).
     '''
+    #FIXME: make sampling correctly uniform
     return get_rnd_simplex(dimension,random_state) * random_state.uniform(0,max_amount)
-
-# print(get_rnd_simplex(4))
 
 if __name__ == "__main__":
     for i in range(10):
-        a = get_rnd_quantities(4.5, 6, np.random.RandomState())
-        print(a, np.sum(a))
+        a = get_rnd_quantities(5.0, 9, np.random.RandomState())
+        print(np.sum(a), np.max(a), sep='...')
