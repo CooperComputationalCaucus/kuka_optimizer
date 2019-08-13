@@ -31,6 +31,74 @@ class Parabolic():
 
         return self.DIM - sum([self.sensitivity[i] * (point[i] - self.arg_opt[i]) ** 2 for i in range(self.DIM)])
 
+class Branin():
+    '''
+    Plot https://www.sfu.ca/~ssurjano/branin.html
+    The function has three gloval minima equal to 0.397887 
+    at (-pi, 12.275), (pi, 2.275) and (9.42478, 2.475)
+    '''
+    def __init__(self):
+        # Typical ranges and parameters
+        self.prange = {'x1': (-5, 10, 0.125),
+        'x2': (0., 15., 0.125)}
+        self.a = 1
+        self.b = 5.1/(4*np.math.pi**2)
+        self.c = 5/(np.math.pi)
+        self.r = 6
+        self.s = 10
+        self.t = 1/(8*np.math.pi)
+
+    def f(self, **kwargs):
+        x1 = kwargs['x1']
+        x2 = kwargs['x2']
+        return self.a*(x2 - self.b*x1**2 + self.c*x1 - self.r)**2 + self.s*(
+            1- self.t)*np.math.cos(x1)+self.s
+
+class Hartmann():
+    '''
+    The description is at https://www.sfu.ca/~ssurjano/hart6.html
+    The function has six local minima
+    Global minimum is 3.32237 at
+    (0.20169, 0.15011, 0.476874, 0.275332, 0.311652, 0.6573)
+    '''
+    def __init__(self):
+        # Typical ranges and parameters
+        self.prange = {'x1': (0, 1, 0.05),
+        'x2': (0, 1, 0.05),
+        'x3': (0, 1, 0.05),
+        'x4': (0, 1, 0.05),
+        'x5': (0, 1, 0.05),
+        'x6': (0, 1, 0.05)}
+        
+        self.alpha = np.array([1.0, 1.2, 3.0, 3.2])
+
+        self.A = np.array(
+            [[10, 3, 17, 3.5, 1.7, 8],
+            [0.05, 10, 17, 0.1, 8, 14],
+            [3, 3.5, 1.7, 10, 17, 8],
+            [17, 8, 0.05, 10, 0.1, 14]])
+
+        self.P = 10**(-4) * np.array(
+            [[1312, 1696, 5569, 124, 8283, 5886],
+            [2329, 4135, 8307, 3736, 1004, 9991],
+            [2348, 1451, 3522, 2883, 3047, 6650],
+            [4047, 8828, 8732, 5743, 1091, 381]])
+
+    def f(self, **kwargs):
+        outer = 0
+        for ii in range(4):
+            inner = 0
+            for jj in range(6):
+                xj = kwargs['x'+str(jj+1)]
+                Aij = self.A[ii, jj]
+                Pij = self.P[ii, jj]
+                inner = inner + Aij*(xj-Pij)**2
+
+            new = self.alpha(ii) * np.math.exp(-inner)
+            outer = outer + new
+
+        return -(2.58 + outer) / 1.94
+
 
 class PhilsFun():
     '''Specific analytical funciton used for 1-d visialuation'''
