@@ -668,17 +668,19 @@ def disc_capitalist_max(instance, exp_mean=1, n_splits=4, n_acqs=4, n_warmup=100
     if multiprocessing > 1:
         out_q = Queue()
         procs = []
-        chunksize = int(np.ceil(len(utilities)/float(multiprocessing)))
-        for i in range(multiprocessing):
+        n_processes = min(multiprocessing, len(utilities))
+        chunksize = int(np.ceil(len(utilities)/float(n_processes)))
+        n_processes = int(np.ceil(len(utilities)/chunksize)) #For uneven splits
+        for i in range(n_processes):
             p = Process(target=worker,
-                        args=(range(chunksize * i, chunksize * (i + 1)),
+                        args=([range(chunksize * i, chunksize * (i + 1))],
                               utilities[chunksize * i:chunksize * (i + 1)],
                               market_sizes[chunksize * i:chunksize * (i + 1)],
                               out_q))
             procs.append(p)
             p.start()
         resultsdict = {}
-        for i in range(multiprocessing):
+        for i in range(n_processes):
             resultsdict.update(out_q.get())
         for p in procs:
             p.join()

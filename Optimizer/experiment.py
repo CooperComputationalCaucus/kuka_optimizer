@@ -19,7 +19,7 @@ import math
 class Experiment:
     MINI_BATCH = 16
     BATCH = 48      
-    BATCH_FILES = 6 #number of files that we want to see in the queue, should be BATCH/BATCH_FILES = MINI_BATCH
+    BATCH_FILES = 3 #number of files that we want to see in the queue, should be BATCH/BATCH_FILES = MINI_BATCH
     SLEEP_DELAY = 5 #delay in seconds before querying the queue folder again
     
     directory_path = './'
@@ -606,8 +606,14 @@ def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=F
     KMBBO_args = {'multiprocessing': multiprocessing,
                   'n_slice':500}
     greedy_args = {'multiprocessing': multiprocessing,
-                   'n_iter' : 250,
+                   'n_iter': 250,
                    'n_warmup': 10000}
+    capitalist_args = {'multiprocessing': multiprocessing,
+                       'exp_mean': 1,
+                       'n_splits': 16,
+                       'n_iter': 250,
+                       'n_warmup': 10000
+                       }
 
     start_time = time()
     ### Choose your own adventure ###
@@ -615,6 +621,8 @@ def clean_and_generate(exp,batches_to_generate,multiprocessing=1,perform_clean=F
         batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='KMBBO',**KMBBO_args)
     elif sampler == 'greedy':
         batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='greedy', **greedy_args)
+    elif sampler == 'capitalist':
+        batch = exp.generate_batch(batch_size=batches_to_generate * (exp.MINI_BATCH - len(exp.controls)), sampler='capitalist', **capitalist_args)
     else:
         raise ValueError("No sampler named {}".format(sampler))
     
@@ -689,7 +697,7 @@ if __name__ == "__main__":
         p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
         p1.start()
         sleep(Experiment.SLEEP_DELAY)
-        p2 = multiprocessing.Process(target=watch_queue, args=(12,'greedy',)) #CPUs used for batch generation and sampler choice, Search strategy
+        p2 = multiprocessing.Process(target=watch_queue, args=(16,'capitalist',)) #CPUs used for batch generation and sampler choice, Search strategy
         p2.start()
     except:
         tb = traceback.format_exc()
