@@ -47,6 +47,8 @@ class Branin():
         self.r = 6
         self.s = 10
         self.t = 1/(8*np.math.pi)
+        self.opt = 0.397887
+        self.x_opt = [(-np.math.pi, 12.275), (np.math.pi, 2.275), (9.42478, 2.475)]
 
     def f(self, **kwargs):
         x1 = kwargs['x1']

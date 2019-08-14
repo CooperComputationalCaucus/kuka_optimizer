@@ -5,7 +5,7 @@ from multiprocessing import Pool
 from .target_space import TargetSpace, DiscreteSpace, PartnerSpace
 from .event import Events, DEFAULT_EVENTS
 from .logger import _get_default_logger, _get_discrete_logger
-from .util import UtilityFunction, acq_max, ensure_rng, get_rnd_quantities
+from .util import UtilityFunction, acq_max, ensure_rng, get_rnd_quantities, get_rng_complement
 from .parallel_opt import disc_acq_max, disc_acq_KMBBO
 from .parallel_opt import disc_constrained_acq_max, disc_constrained_acq_KMBBO
 from .parallel_opt import disc_capitalist_max
@@ -114,6 +114,10 @@ class BayesianOptimization(Observable):
     @property
     def constraints(self):
         return self._array_constraints
+
+    @property
+    def verbose(self):
+        return self._verbose
 
     def register(self, params, target):
         """Expect observation with known target"""
@@ -325,7 +329,8 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         n_var = self.space.dim
         n_constrained_var = 0
         for i in range(n_var):
-            if 'x[{}]'.format(i) in s: n_constrained_var += 1
+            if 'x[{}]'.format(i) in s:
+                n_constrained_var += 1
         # Initialize randoms
         x = np.zeros((n_points, n_var))
         # Get max value of liquid constraint
@@ -334,7 +339,7 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         except:
             raise SyntaxError("Is your liquid constraint lead by the max volume? : {}".format(s))
 
-        # Generator for complements that are consistent with max
+        # Generator for complements that are consistent with max scaled by simplex if relevant
         # followed by simplex sampling for constrained
         # followed by random sampling for unconstrained
         if ms:
@@ -344,19 +349,22 @@ class DiscreteBayesianOptimization(BayesianOptimization):
                 while rem_max_val <= 0:
                     rem_max_val = max_val
                     for complement in complements:
-                        x[i, complement] = random_state.uniform(bounds[complement, 0], bounds[complement, 1])
-                        # Extract regex, includes two options for ordering issues
-                        reductions = []
-                        p = re.compile(
-                            '- \(\(x\[{:d}\]<0.5\) \* \(\(\(0.5 - x\[{:d}\]\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(
-                                complement, complement))
-                        reductions.append(p.findall(s)[0])
-                        p = re.compile(
-                            '- \(\(x\[{:d}+\]>=0.5\) \* \(\(\(x\[{:d}\] - 0.5\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(
-                                complement, complement))
-                        reductions.append(p.findall(s)[0])
-                        for reduction in reductions:
-                            rem_max_val += pd.eval(reduction, local_dict={'x': x[i, :]})
+                        if 'x[{}]'.format(complement) in s:
+                            x[i, complement] = get_rng_complement(n_constrained_var, random_state)
+                            # Extract regex, includes two options for ordering issues
+                            reductions = []
+                            p = re.compile(
+                                '- \(\(x\[{:d}\]<0.5\) \* \(\(\(0.5 - x\[{:d}\]\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(
+                                    complement, complement))
+                            reductions.append(p.findall(s)[0])
+                            p = re.compile(
+                                '- \(\(x\[{:d}+\]>=0.5\) \* \(\(\(x\[{:d}\] - 0.5\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(
+                                    complement, complement))
+                            reductions.append(p.findall(s)[0])
+                            for reduction in reductions:
+                                rem_max_val += pd.eval(reduction, local_dict={'x': x[i, :]})
+                        else:
+                            x[i, complement] = random_state.uniform(bounds[complement, 0], bounds[complement, 1])
                 rnd = get_rnd_quantities(rem_max_val, n_constrained_var, random_state)
                 cnt = 0
                 for j in range(n_var):

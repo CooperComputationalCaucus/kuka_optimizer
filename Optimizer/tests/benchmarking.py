@@ -7,6 +7,20 @@ from Optimizer.bayes_opt import UtilityFunction
 N_THREADS = 4
 
 
+def print_avg_distance(points):
+    x = np.array([list(point.values()) for point in points])
+    distance_sum = 0
+    cnt = 0
+    n = len(points)
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                continue
+            distance_sum += np.linalg.norm(x[i, :] - x[j, :])
+            cnt += 1
+    print("Averge distance between X values:", distance_sum / cnt)
+
+
 def run_function(func, prange, sampler, constraints=[], complements=False, verbose=True, batch_size=12, init_random=3,
                  n_batches=50, kappa=2.5, expected_max=None, **kwargs):
     """
@@ -53,10 +67,12 @@ def run_function(func, prange, sampler, constraints=[], complements=False, verbo
                                       sampler=sampler,
                                       n_acqs=batch_size,
                                       **kwargs)
+        if verbose == 2:
+            print_avg_distance(next_points)
+
         for next_point in next_points:
             for key in next_point:
-                pass
-                # next_point[key] += np.random.uniform(-.001, .001)  # makes discrete point different than bin
+                next_point[key] += np.random.uniform(-.001, .001)  # makes discrete point different than bin
             target = func(**next_point)
             dbo.register(params=next_point, target=target)
             if target > max_val['val']:
@@ -159,7 +175,8 @@ def run_parabolic(dim=4, constrained=True, verbose=True, batch_size=12, init_ran
     return results
 
 
-def loop_parabolic(dims=[3, 4, 5], verbose=True, batch_size=12, init_random=3, n_batches=25, strategy="all",
+def loop_parabolic(dims=[3, 4, 5], constrained=True, verbose=True, batch_size=12, init_random=3, n_batches=25,
+                   strategy="all",
                    strat_args=[]):
     """
     Arguments
@@ -177,6 +194,7 @@ def loop_parabolic(dims=[3, 4, 5], verbose=True, batch_size=12, init_random=3, n
         for dim in dims:
             print("Optimizing parabolic function with {} dimensions".format(dim))
             run_parabolic(dim=dim,
+                          constrained=constrained,
                           verbose=verbose,
                           batch_size=batch_size,
                           init_random=init_random,
@@ -187,8 +205,9 @@ def loop_parabolic(dims=[3, 4, 5], verbose=True, batch_size=12, init_random=3, n
     else:
         results = {}
         for kwargs in strat_args:
+            print(kwargs)
             results[str(kwargs)] = {}
-            for i in range(10):
+            for i in range(1):
                 res = run_parabolic(verbose=verbose,
                                     n_batches=n_batches,
                                     strategy=strategy,
@@ -261,6 +280,7 @@ def run_pH_model(verbose=True, batch_size=12, init_random=3, n_batches=25):
                            n_batches=n_batches,
                            **KMBBO_args)
 
+
 def greedy_main():
     strat_args = [{'dim': 5, 'batch_size': 16, 'init_random': 3, 'kappa': 1},
                   {'dim': 5, 'batch_size': 16, 'init_random': 3, 'kappa': 2.5},
@@ -275,6 +295,10 @@ def greedy_main():
                   {'dim': 10, 'batch_size': 48, 'init_random': 1, 'kappa': 2.5},
                   {'dim': 10, 'batch_size': 48, 'init_random': 1, 'kappa': 5}
                   ]
+    strat_args = [{'dim': 8, 'batch_size': 48, 'init_random': 1, 'kappa': 1},
+                  {'dim': 8, 'batch_size': 48, 'init_random': 1, 'kappa': 2.5},
+                  {'dim': 8, 'batch_size': 48, 'init_random': 1, 'kappa': 5}
+                  ]
     res = loop_parabolic(strategy='greedy', strat_args=strat_args, n_batches=20)
     with open("greedy_benchmarking.csv", 'w') as f:
         for args in res:
@@ -284,6 +308,7 @@ def greedy_main():
             for i in res[args]:
                 f.write("{},{},{},{}\n".format(i, res[args][i]['proximity'], res[args][i]['iter'], res[args][i]['val']))
             f.write("\n")
+
 
 def capitalism_main():
     strat_args = [{'dim': 5, 'batch_size': 16, 'n_splits': 4, 'init_random': 3, 'exp_mean': 1},
@@ -311,6 +336,10 @@ def capitalism_main():
                   {'dim': 10, 'batch_size': 48, 'n_splits': 8, 'init_random': 1, 'exp_mean': 2.5},
                   {'dim': 10, 'batch_size': 48, 'n_splits': 8, 'init_random': 1, 'exp_mean': 0.5}
                   ]
+    strat_args = [{'dim': 8, 'batch_size': 48, 'n_splits': 8, 'init_random': 1, 'exp_mean': 1},
+                  {'dim': 8, 'batch_size': 48, 'n_splits': 8, 'init_random': 1, 'exp_mean': 2.5},
+                  {'dim': 8, 'batch_size': 48, 'n_splits': 8, 'init_random': 1, 'exp_mean': 0.5}
+                  ]
     res = loop_parabolic(strategy='capitalist', strat_args=strat_args, n_batches=20)
     with open("capitalism_benchmarking.csv", 'w') as f:
         for args in res:
@@ -327,18 +356,23 @@ def KMBBO_main():
                   {'dim': 5, 'batch_size': 16, 'init_random': 3, 'n_slice': 500},
                   {'dim': 5, 'batch_size': 16, 'init_random': 3, 'n_slice': 1000},
                   {'dim': 5, 'batch_size': 16, 'init_random': 3, 'n_slice': 5000},
-                  {'dim': 5, 'batch_size': 48, 'init_random': 3, 'n_slice': 250},
-                  {'dim': 5, 'batch_size': 48, 'init_random': 3, 'n_slice': 500},
-                  {'dim': 5, 'batch_size': 48, 'init_random': 3, 'n_slice': 1000},
-                  {'dim': 5, 'batch_size': 48, 'init_random': 3, 'n_slice': 5000},
+                  {'dim': 5, 'batch_size': 48, 'init_random': 1, 'n_slice': 250},
+                  {'dim': 5, 'batch_size': 48, 'init_random': 1, 'n_slice': 500},
+                  {'dim': 5, 'batch_size': 48, 'init_random': 1, 'n_slice': 1000},
+                  {'dim': 5, 'batch_size': 48, 'init_random': 1, 'n_slice': 5000},
                   {'dim': 10, 'batch_size': 16, 'init_random': 3, 'n_slice': 250},
                   {'dim': 10, 'batch_size': 16, 'init_random': 3, 'n_slice': 500},
                   {'dim': 10, 'batch_size': 16, 'init_random': 3, 'n_slice': 1000},
-                  {'dim': 10, 'batch_size': 16, 'init_random': 3, 'n_slice': 5000}
-                  {'dim': 10, 'batch_size': 48, 'init_random': 3, 'n_slice': 250},
-                  {'dim': 10, 'batch_size': 48, 'init_random': 3, 'n_slice': 500},
-                  {'dim': 10, 'batch_size': 48, 'init_random': 3, 'n_slice': 1000},
-                  {'dim': 10, 'batch_size': 48, 'init_random': 3, 'n_slice': 5000}
+                  {'dim': 10, 'batch_size': 16, 'init_random': 3, 'n_slice': 5000},
+                  {'dim': 10, 'batch_size': 48, 'init_random': 1, 'n_slice': 250},
+                  {'dim': 10, 'batch_size': 48, 'init_random': 1, 'n_slice': 500},
+                  {'dim': 10, 'batch_size': 48, 'init_random': 1, 'n_slice': 1000},
+                  {'dim': 10, 'batch_size': 48, 'init_random': 1, 'n_slice': 5000}
+                  ]
+    strat_args = [{'dim': 8, 'batch_size': 48, 'init_random': 1, 'n_slice': 250},
+                  {'dim': 8, 'batch_size': 48, 'init_random': 1, 'n_slice': 500},
+                  {'dim': 8, 'batch_size': 48, 'init_random': 1, 'n_slice': 1000},
+                  {'dim': 8, 'batch_size': 48, 'init_random': 1, 'n_slice': 5000}
                   ]
     res = loop_parabolic(strategy='KMBBO', strat_args=strat_args, n_batches=20)
     with open("KMBBO_benchmarking.csv", 'w') as f:
@@ -349,10 +383,45 @@ def KMBBO_main():
             for i in res[args]:
                 f.write("{},{},{},{}\n".format(i, res[args][i]['proximity'], res[args][i]['iter'], res[args][i]['val']))
             f.write("\n")
+
+
+def single_greedy():
+    greedy_args = {'multiprocessing': N_THREADS,
+                   'n_iter': 250,
+                   'n_warmup': 1000,
+                   'kappa': 0.1,
+                   'verbose': 2}
+
+    run_parabolic(dim=10,
+                  constrained=True,
+                  batch_size=8,
+                  init_random=5,
+                  n_batches=25,
+                  strategy="greedy",
+                  **greedy_args)
+
+def single_capitalist():
+    capitalist_args = {'multiprocessing': N_THREADS,
+                       'exp_mean': 1,
+                       'n_splits': 4,
+                       'n_iter': 250,
+                       'n_warmup': 1000,
+                       'verbose': 2}
+
+    run_parabolic(dim=10,
+                  constrained=True,
+                  batch_size=8,
+                  init_random=3,
+                  n_batches=25,
+                  strategy="capitalist",
+                  **capitalist_args)
+
 if __name__ == '__main__':
-    capitalism_main()
-    greedy_main()
-    KMBBO_main()
+    single_capitalist()
+    # single_greedy()
+    # capitalism_main()
+    # greedy_main()
+    # KMBBO_main()
     # loop_parabolic([i for i in range(9,10)], constrained=True, n_batches=15)
     # loop_parabolic([i for i in range(3,5)], constrained=False, n_batches=25)
     # run_pH_model(n_batches=15)

@@ -3,7 +3,8 @@ import numpy as np
 from scipy.stats import norm
 from scipy.optimize import minimize
 
-#TODO: Build in constraint compatibility in acq_max
+
+
 def acq_max(ac, gp, y_max, bounds, random_state, n_warmup=100000, n_iter=250):
     """
     A function to find the maximum of the acquisition function
@@ -114,7 +115,7 @@ class UtilityFunction(object):
             warnings.simplefilter("ignore")
             mean, std = gp.predict(x, return_std=True)
 
-        z = (mean - y_max - xi)/std
+        z = (mean - y_max - xi) / std
         return (mean - y_max - xi) * norm.cdf(z) + std * norm.pdf(z)
 
     @staticmethod
@@ -123,7 +124,7 @@ class UtilityFunction(object):
             warnings.simplefilter("ignore")
             mean, std = gp.predict(x, return_std=True)
 
-        z = (mean - y_max - xi)/std
+        z = (mean - y_max - xi) / std
         return norm.cdf(z)
 
 
@@ -243,17 +244,35 @@ class Colours:
 '''
 Bits related to sampling under constraints.
 '''
-def get_rnd_simplex(dimension,random_state):
+
+
+def get_rnd_simplex(dimension, random_state):
     '''
     uniform point on a simplex, i.e. x_i >= 0 and sum of the coordinates is 1.
     Donald B. Rubin, The Bayesian bootstrap Ann. Statist. 9, 1981, 130-134.
     https://cs.stackexchange.com/questions/3227/uniform-sampling-from-a-simplex
     '''
-    t = random_state.uniform(0, 1, dimension-1)
-    t = np.append(t,[0,1])
+    t = random_state.uniform(0, 1, dimension - 1)
+    t = np.append(t, [0, 1])
     t.sort()
 
-    return np.array([(t[i+1] - t[i]) for i in range(len(t)-1)])
+    return np.array([(t[i + 1] - t[i]) for i in range(len(t) - 1)])
+
+
+def get_rng_complement(dimension, random_state):
+    """
+    This samples a unit simplex uniformly, takes the first value and scales it to center about the complement range.
+    Parameters
+    ----------
+    dimension
+    random_state
+
+    Returns
+    -------
+    float, [0,1]
+    """
+    return 0.5 + get_rnd_simplex(dimension, random_state)[0] * [-0.5, 0.5][np.random.randint(2)]
+
 
 def get_rnd_quantities(max_amount, dimension, random_state):
     '''
@@ -263,8 +282,9 @@ def get_rnd_quantities(max_amount, dimension, random_state):
     with a probability proportionate to the volume of a regular simplex with vector length m.
     '''
     r = random_state.uniform(0, 1)
-    m = (r * (max_amount**(dimension+1)))**(1/(dimension+1))
-    return get_rnd_simplex(dimension,random_state) * m
+    m = (r * (max_amount ** (dimension + 1))) ** (1 / (dimension + 1))
+    return get_rnd_simplex(dimension, random_state) * m
+
 
 if __name__ == "__main__":
     for i in range(10):
