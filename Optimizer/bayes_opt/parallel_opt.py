@@ -482,6 +482,8 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
         if time.time() - start_time > 0.5 * TIMEOUT_TIME:
             raise TimeoutError("Failure in greedy constrained optimizer."
                                " Check number gradient based initializations (n_iter).")
+    if instance._verbose == 2:
+        print("Sorted acquisition function values: ", sorted(acqs.values()))
     return [key for key in acqs.keys()]
 
 
@@ -604,6 +606,21 @@ def disc_constrained_acq_KMBBO(ac, instance, n_acqs=1, n_slice=200, n_warmup=100
     return [key for key in acqs.keys()]
 
 
+def capitalist_worker(ucb_max, instance, n_warmup, n_iter, complements, procnums, utilities, market_sizes, out_q):
+    """Worker function for multiprocessing"""
+    outdict = {}
+    for k in range(len(utilities)):
+        outdict[procnums[k]] = ucb_max(ac=utilities[k].utility,
+                                       instance=instance,
+                                       n_acqs=market_sizes[k],
+                                       n_warmup=n_warmup,
+                                       n_iter=n_iter,
+                                       multiprocessing=1,
+                                       complements=complements
+                                       )
+    out_q.put(outdict)
+
+
 def disc_capitalist_max(instance, exp_mean=1, n_splits=4, n_acqs=4, n_warmup=10000, n_iter=250, multiprocessing=1,
                         complements=False):
     """
@@ -634,20 +651,6 @@ def disc_capitalist_max(instance, exp_mean=1, n_splits=4, n_acqs=4, n_warmup=100
     else:
         ucb_max = disc_acq_max
 
-    def worker(procnums, utilities, market_sizes, out_q):
-        """Worker function for multiprocessing"""
-        outdict = {}
-        for k in range(len(procnums)):
-            outdict[procnums[k]] = ucb_max(ac=utilities[k].utility,
-                                           instance=instance,
-                                           n_acqs=market_sizes[k],
-                                           n_warmup=n_warmup,
-                                           n_iter=n_iter,
-                                           multiprocessing=1,
-                                           complements=complements
-                                           )
-        out_q.put(outdict)
-
     assert n_acqs >= n_splits, "Number of desired acquisitions from capitalist sampling must be larger than the" \
                                " number of market segments"
 
@@ -669,11 +672,16 @@ def disc_capitalist_max(instance, exp_mean=1, n_splits=4, n_acqs=4, n_warmup=100
         out_q = Queue()
         procs = []
         n_processes = min(multiprocessing, len(utilities))
-        chunksize = int(np.ceil(len(utilities)/float(n_processes)))
-        n_processes = int(np.ceil(len(utilities)/chunksize)) #For uneven splits
+        chunksize = int(np.ceil(len(utilities) / float(n_processes)))
+        n_processes = int(np.ceil(len(utilities) / chunksize))  # For uneven splits
         for i in range(n_processes):
-            p = Process(target=worker,
-                        args=([range(chunksize * i, chunksize * (i + 1))],
+            p = Process(target=capitalist_worker,
+                        args=(ucb_max,
+                              instance,
+                              n_warmup,
+                              n_iter,
+                              complements,
+                              range(chunksize * i, chunksize * (i + 1)),
                               utilities[chunksize * i:chunksize * (i + 1)],
                               market_sizes[chunksize * i:chunksize * (i + 1)],
                               out_q))
