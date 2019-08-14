@@ -115,6 +115,10 @@ class BayesianOptimization(Observable):
     def constraints(self):
         return self._array_constraints
 
+    @property
+    def verbose(self):
+        return self._verbose
+
     def register(self, params, target):
         """Expect observation with known target"""
         self._space.register(params, target)

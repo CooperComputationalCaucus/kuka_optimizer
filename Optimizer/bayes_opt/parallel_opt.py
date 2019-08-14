@@ -482,7 +482,7 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
         if time.time() - start_time > 0.5 * TIMEOUT_TIME:
             raise TimeoutError("Failure in greedy constrained optimizer."
                                " Check number gradient based initializations (n_iter).")
-    if instance._verbose == 2:
+    if instance.verbose == 2:
         print("Sorted acquisition function values: ", sorted(acqs.values()))
     return [key for key in acqs.keys()]
 
