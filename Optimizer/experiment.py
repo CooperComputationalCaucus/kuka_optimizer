@@ -600,9 +600,7 @@ class Experiment:
             print('Total number of points in model: ' + str(len(self.points)))
 
     def optimisation_target(self, frame):
-        # return frame['hydrogen_evolution']
-        # return frame['hydrogen_evolution_micromol']
-        return frame['weighted_hydrogen_micromol']
+        return frame['hydrogen_evolution_micromol']
 
     def new_model_available(self):
         new_uuid = self.get_saved_model_uuid()
