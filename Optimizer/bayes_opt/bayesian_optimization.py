@@ -270,6 +270,16 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         self._space = DiscreteSpace(f, prange, random_state)
         self.partner_space = PartnerSpace(f, prange, random_state)
 
+        length_scale = list(self._space._steps)
+        self._gp = GaussianProcessRegressor(
+            kernel=Matern(length_scale=length_scale,
+                          nu=2.5),
+            alpha=1e-6,
+            normalize_y=True,
+            n_restarts_optimizer=25,
+            random_state=self._random_state
+        )
+
     def probe(self, params, lazy=True):
         """Probe target of x"""
         if isinstance(params, list):
