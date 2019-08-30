@@ -252,6 +252,22 @@ class BayesianOptimization(Observable):
                           'fun': funcs[idx]})
         return dicts
 
+    def output_space(self, path):
+        """
+        Outputs complete space as csv file.
+        Simple function for testing
+        Parameters
+        ----------
+        path
+
+        Returns
+        -------
+
+        """
+        df = pd.DataFrame(data=self.space.params, columns=self.space.keys)
+        df['Target'] = self.space.target
+        df.to_csv(path)
+
 class DiscreteBayesianOptimization(BayesianOptimization):
     '''
     Optimization object by default performs batch optimization of discrete parameters. 

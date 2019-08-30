@@ -244,6 +244,25 @@ class Experiment:
 
         return
 
+
+    def output_space(self, path):
+        """
+        Outputs complete space as csv file.
+        Simple function for testing
+        Parameters
+        ----------
+        path
+
+        Returns
+        -------
+
+        """
+        import pandas as pd
+        df = pd.DataFrame(self.points)
+        df['Target'] = self.targets
+        df.to_csv(path)
+
+
     def generate_model(self, verbose=0, random_state=None):
         '''
         Creates, saves, and returns Bayesian optimizer 
