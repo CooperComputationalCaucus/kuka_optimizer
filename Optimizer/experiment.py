@@ -283,7 +283,8 @@ class Experiment:
 
         # Fit gaussian process
         data['random_state'] = np.random.get_state()
-        if len(dbo.space) > 0: dbo.fit_gp()
+        if len(dbo.space) > 0:
+            dbo.fit_gp()
 
         # Refresh queue and copy old model
         self.read_batch_number()
@@ -544,7 +545,7 @@ class Experiment:
             # print(filename, self.parser.processed_files[filename].tail())
             print(f"Adding data from {filename} to the list of points: {len(frame)} measurements.")
 
-            self.targets.extend(list(self.optimisation_target(frame)))
+            f_targets = list(self.optimisation_target(frame))
             skipped = 0
             for idx, row in frame.iterrows():
 
@@ -594,9 +595,12 @@ class Experiment:
                             # print(f"Warning! {comp} was not found in the file {filename}")
                     self.complement_mapping(point)
                     self.points.append(point)
+                    self.targets.append(f_targets[idx])
 
             if skipped != 0:
                 print('Warning: Ignored ' + str(skipped) + ' points.')
+            assert len(self.targets) == len(self.points), "Missmatch in points and targets. "\
+                                                          "Error in Experiment.update_points_and_targets"
             print('Total number of points in model: ' + str(len(self.points)))
 
     def optimisation_target(self, frame):
@@ -711,15 +715,15 @@ def watch_queue(multiprocessing=1, sampler='greedy'):
 
 
 if __name__ == "__main__":
-    try:
-        p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
-        p1.start()
-        sleep(Experiment.SLEEP_DELAY)
-        p2 = multiprocessing.Process(target=watch_queue, args=(14,'capitalist',)) #CPUs used for batch generation and sampler choice, Search strategy
-        p2.start()
-    except:
-        tb = traceback.format_exc()
-        print(tb)
+    # try:
+    #     p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
+    #     p1.start()
+    #     sleep(Experiment.SLEEP_DELAY)
+    #     p2 = multiprocessing.Process(target=watch_queue, args=(14,'capitalist',)) #CPUs used for batch generation and sampler choice, Search strategy
+    #     p2.start()
+    # except:
+    #     tb = traceback.format_exc()
+    #     print(tb)
 
     #     ### DEBUGINING LINES ###
     #     p1 = multiprocessing.Process(target=watch_completed, args=(900,)) #Delay for model building when finding new data
@@ -727,10 +731,10 @@ if __name__ == "__main__":
     #     sleep(Experiment.SLEEP_DELAY)
     #     p2 = multiprocessing.Process(target=watch_queue, args=(4,'KMBBO',)) #CPUs used for batch generation
     #     p2.start()
-    ### IN SERIAL ###
-    # try:
-    #     os.remove('optimizer.pickle')  # Clean start
-    # except OSError:
-    #     pass
-    # watch_queue(7, 'capitalist')
-    ### DEBUGING LINES ###
+    ## IN SERIAL ###
+    try:
+        os.remove('optimizer.pickle')  # Clean start
+    except OSError:
+        pass
+    watch_queue(7, 'capitalist')
+    ## DEBUGING LINES ###
