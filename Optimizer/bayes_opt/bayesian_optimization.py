@@ -252,7 +252,6 @@ class BayesianOptimization(Observable):
                           'fun': funcs[idx]})
         return dicts
 
-
 class DiscreteBayesianOptimization(BayesianOptimization):
     '''
     Optimization object by default performs batch optimization of discrete parameters. 
@@ -273,8 +272,9 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         length_scale = list(self._space._steps)
         self._gp = GaussianProcessRegressor(
             kernel=Matern(length_scale=length_scale,
+                          length_scale_bounds=(1e-2, 1e3),
                           nu=2.5),
-            alpha=1e-6,
+            alpha=1e-2,
             normalize_y=True,
             n_restarts_optimizer=25,
             random_state=self._random_state
