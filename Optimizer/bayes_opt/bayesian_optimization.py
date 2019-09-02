@@ -290,7 +290,7 @@ class DiscreteBayesianOptimization(BayesianOptimization):
             kernel=Matern(length_scale=length_scale,
                           length_scale_bounds=(1e-3, 1e3),
                           nu=2.5),
-            alpha=1e-4,
+            alpha=1e-2,
             normalize_y=True,
             n_restarts_optimizer=10*self.space.dim,
             random_state=self._random_state
