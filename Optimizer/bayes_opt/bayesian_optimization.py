@@ -288,11 +288,11 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         length_scale = list(self._space._steps)
         self._gp = GaussianProcessRegressor(
             kernel=Matern(length_scale=length_scale,
-                          length_scale_bounds=(1e-2, 1e3),
+                          length_scale_bounds=(1e-3, 1e3),
                           nu=2.5),
-            alpha=1e-2,
+            alpha=1e-4,
             normalize_y=True,
-            n_restarts_optimizer=25,
+            n_restarts_optimizer=10*self.space.dim,
             random_state=self._random_state
         )
 
@@ -440,7 +440,8 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         # we don't really need to see them here.
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            self._gp.fit(self._space.params, self._space.target)
+            if fit_gp:
+                self._gp.fit(self._space.params, self._space.target)
 
         # Finding argmax(s) of the acquisition function.
         if sampler == 'KMBBO':
