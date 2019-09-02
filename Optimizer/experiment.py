@@ -318,7 +318,9 @@ class Experiment:
                 print("Model trained in {:8.2f} minutes".format((time() - start_time) / 60))
             if any(dbo._gp.kernel_.length_scale>5e2):
                 print("Warning: Very long length scale detected when fitting Matern kernel.")
-
+            print("Model length scales:")
+            for key, value in dict(zip(dbo.space.keys, dbo._gp.kernel_.length_scale)).items():
+                print("{}: {:8.4f}".format(key, value))
         # Refresh queue and copy old model
         self.read_batch_number()
         fname = os.path.join(self.directory_path, 'optimizer.pickle')
