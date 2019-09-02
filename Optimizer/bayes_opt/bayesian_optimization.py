@@ -252,6 +252,21 @@ class BayesianOptimization(Observable):
                           'fun': funcs[idx]})
         return dicts
 
+    def output_space(self, path):
+        """
+        Outputs complete space as csv file.
+        Simple function for testing
+        Parameters
+        ----------
+        path
+
+        Returns
+        -------
+
+        """
+        df = pd.DataFrame(data=self.space.params, columns=self.space.keys)
+        df['Target'] = self.space.target
+        df.to_csv(path)
 
 class DiscreteBayesianOptimization(BayesianOptimization):
     '''
@@ -269,6 +284,17 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         super(DiscreteBayesianOptimization, self).__init__(f, self._pbounds, random_state, verbose, constraints)
         self._space = DiscreteSpace(f, prange, random_state)
         self.partner_space = PartnerSpace(f, prange, random_state)
+
+        length_scale = list(self._space._steps)
+        self._gp = GaussianProcessRegressor(
+            kernel=Matern(length_scale=length_scale,
+                          length_scale_bounds=(1e-3, 1e3),
+                          nu=2.5),
+            alpha=1e-2,
+            normalize_y=True,
+            n_restarts_optimizer=10*self.space.dim,
+            random_state=self._random_state
+        )
 
     def probe(self, params, lazy=True):
         """Probe target of x"""
@@ -309,7 +335,9 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         Random number generator that deals more effectively with highly constrained spaces. 
         
         Works only off single constraint of form L - sum(x_i) >=0
-        Where the lower bound of each x_i is 0. 
+        Where the lower bound of each x_i is 0.
+
+        Generates a fraction of points from a nonuniform sampling that favors limiting cases. (n_var/50)
         Parameters
         ----------
         n_points: integer number of points to generate
@@ -331,8 +359,11 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         for i in range(n_var):
             if 'x[{}]'.format(i) in s:
                 n_constrained_var += 1
+        # Get extra points from nonuniformity
+        n_nonuniform = int(n_points * n_var/50)
+        n_points -= n_nonuniform
         # Initialize randoms
-        x = np.zeros((n_points, n_var))
+        x = np.zeros((n_points+n_nonuniform, n_var))
         # Get max value of liquid constraint
         try:
             max_val = float(s.split(' ')[0])
@@ -342,6 +373,7 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         # Generator for complements that are consistent with max scaled by simplex if relevant
         # followed by simplex sampling for constrained
         # followed by random sampling for unconstrained
+        complements = []
         if ms:
             complements = [int(m) for m in ms]
             for i in range(n_points):
@@ -385,7 +417,40 @@ class DiscreteBayesianOptimization(BayesianOptimization):
                         cnt += 1
                     else:
                         x[i, j] = random_state.uniform(bounds[j, 0], bounds[j, 1])
-        if bin: x = np.floor((x - bounds[:, 0]) / steps) * steps + bounds[:, 0]
+        # Add nonuniform sampling
+        for i in range(n_points,n_nonuniform+n_points):
+            rem_max_val = max_val
+            var_list = list(range(n_var))
+            while var_list:
+                j = var_list.pop(np.random.choice(range(len(var_list))))
+                if 'x[{}]'.format(j) in self.constraints[0]:
+                    x[i, j] = np.random.uniform(bounds[j, 0], min(bounds[j, 1], rem_max_val))
+                    if j in complements:
+                        reductions = []
+                        p = re.compile(
+                            '- \(\(x\[{:d}\]<0.5\) \* \(\(\(0.5 - x\[{:d}\]\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(
+                                complement, complement))
+                        reductions.append(p.findall(s)[0])
+                        p = re.compile(
+                            '- \(\(x\[{:d}+\]>=0.5\) \* \(\(\(x\[{:d}\] - 0.5\)/0.5\) \* \(\d+.\d+-\d+.\d+\) \+ \d+.\d+\) \) '.format(
+                                complement, complement))
+                        reductions.append(p.findall(s)[0])
+                        for reduction in reductions:
+                            rem_max_val += pd.eval(reduction, local_dict={'x': x[i, :]})
+                        # Contingency for complement generation irreverent to remaining value
+                        # Uses ratio with respect to max_value to pull fraction of remaining
+                        while rem_max_val < 0:
+                            for reduction in reductions:
+                                rem_max_val -= pd.eval(reduction, local_dict={'x': x[i, :]})
+                            x[i, j] = (rem_max_val / max_val * (0.5 - x[i, j])) + 0.5
+                            for reduction in reductions:
+                                rem_max_val += pd.eval(reduction, local_dict={'x': x[i, :]})
+                    else:
+                        rem_max_val -= x[i,j]
+                else:
+                    x[i, j] = random_state.uniform(bounds[j, 0], bounds[j, 1])
+        if bin:
+            x = np.floor((x - bounds[:, 0]) / steps) * steps + bounds[:, 0]
         return x
 
     def suggest(self, utility_function, sampler='greedy', fit_gp=True, **kwargs):
@@ -414,7 +479,8 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         # we don't really need to see them here.
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            self._gp.fit(self._space.params, self._space.target)
+            if fit_gp:
+                self._gp.fit(self._space.params, self._space.target)
 
         # Finding argmax(s) of the acquisition function.
         if sampler == 'KMBBO':

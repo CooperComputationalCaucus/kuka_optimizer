@@ -244,6 +244,25 @@ class Experiment:
 
         return
 
+
+    def output_space(self, path):
+        """
+        Outputs complete space as csv file.
+        Simple function for testing
+        Parameters
+        ----------
+        path
+
+        Returns
+        -------
+
+        """
+        import pandas as pd
+        df = pd.DataFrame(self.points)
+        df['Target'] = self.targets
+        df.to_csv(path)
+
+
     def generate_model(self, verbose=0, random_state=None):
         '''
         Creates, saves, and returns Bayesian optimizer 
@@ -278,12 +297,27 @@ class Experiment:
 
         # Register running data to partner space in optimizer
         running_points = self.get_running_points()
-        for point in running_points:
-            dbo.partner_register(params=point, clear=True)
+        for idx, point in enumerate(running_points):
+            if idx == 0:
+                dbo.partner_register(params=point, clear=True)
+            else:
+                dbo.partner_register(params=point, clear=False)
 
         # Fit gaussian process
         data['random_state'] = np.random.get_state()
-        if len(dbo.space) > 0: dbo.fit_gp()
+        if len(dbo.space) > 0:
+            dbo.output_space('dbo_space.csv')
+            #self.output_space('exp_space.csv')
+            start_time = time()
+            dbo.fit_gp()
+            print("Model trained in {:8.2f} minutes".format((time()-start_time)/60))
+            if any(dbo._gp.kernel_.length_scale<5e-3):
+                print("Warning: Very short length scale detected when fitting Matern kernel. Retraining model...")
+                start_time = time()
+                dbo.fit_gp()
+                print("Model trained in {:8.2f} minutes".format((time() - start_time) / 60))
+            if any(dbo._gp.kernel_.length_scale>5e2):
+                print("Warning: Very long length scale detected when fitting Matern kernel.")
 
         # Refresh queue and copy old model
         self.read_batch_number()
@@ -340,6 +374,14 @@ class Experiment:
 
         # Generate batch of suggestions
         batch = dbo.suggest(utility, sampler=sampler, n_acqs=batch_size, fit_gp=False, **kwargs)
+
+        # Clear and re-register running data to partner space in optimizer (can be adjusted in capitalist)
+        running_points = self.get_running_points()
+        for idx, point in enumerate(running_points):
+            if idx == 0:
+                dbo.partner_register(params=point, clear=True)
+            else:
+                dbo.partner_register(params=point, clear=False)
         for point in batch:
             self.complement_mapping(point)
         return batch
@@ -470,7 +512,7 @@ class Experiment:
                     _points.append(point)
 
         if skipped != 0:
-            print('Warning: Ignored ' + str(skipped) + ' points.')
+            print('Warning: Ignored ' + str(skipped) + ' points in running folder.')
         return _points
 
     def skip_point(self, point):
@@ -544,7 +586,7 @@ class Experiment:
             # print(filename, self.parser.processed_files[filename].tail())
             print(f"Adding data from {filename} to the list of points: {len(frame)} measurements.")
 
-            self.targets.extend(list(self.optimisation_target(frame)))
+            f_targets = list(self.optimisation_target(frame))
             skipped = 0
             for idx, row in frame.iterrows():
 
@@ -594,9 +636,12 @@ class Experiment:
                             # print(f"Warning! {comp} was not found in the file {filename}")
                     self.complement_mapping(point)
                     self.points.append(point)
+                    self.targets.append(f_targets[idx])
 
             if skipped != 0:
                 print('Warning: Ignored ' + str(skipped) + ' points.')
+            assert len(self.targets) == len(self.points), "Missmatch in points and targets. "\
+                                                          "Error in Experiment.update_points_and_targets"
             print('Total number of points in model: ' + str(len(self.points)))
 
     def optimisation_target(self, frame):
@@ -622,12 +667,12 @@ def clean_and_generate(exp, batches_to_generate, multiprocessing=1, perform_clea
     greedy_args = {'multiprocessing': multiprocessing,
                    'n_iter': 500,
                    'n_warmup': 10000,
-                   'kappa': 2.5}
+                   'kappa': 1.5}
     capitalist_args = {'multiprocessing': multiprocessing,
-                       'exp_mean': 1,
+                       'exp_mean': 10,
                        'n_splits': 14,
-                       'n_iter': 500,
-                       'n_warmup': 10000
+                       'n_iter': 250,
+                       'n_warmup': 1000
                        }
 
     start_time = time()
@@ -727,10 +772,10 @@ if __name__ == "__main__":
     #     sleep(Experiment.SLEEP_DELAY)
     #     p2 = multiprocessing.Process(target=watch_queue, args=(4,'KMBBO',)) #CPUs used for batch generation
     #     p2.start()
-    ### IN SERIAL ###
+    # ## IN SERIAL ###
     # try:
     #     os.remove('optimizer.pickle')  # Clean start
     # except OSError:
     #     pass
-    # watch_queue(7, 'capitalist')
-    ### DEBUGING LINES ###
+    # watch_queue(7, 'greedy')
+    # ## DEBUGING LINES ###
