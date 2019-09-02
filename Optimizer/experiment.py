@@ -297,13 +297,27 @@ class Experiment:
 
         # Register running data to partner space in optimizer
         running_points = self.get_running_points()
-        for point in running_points:
-            dbo.partner_register(params=point, clear=True)
+        for idx, point in enumerate(running_points):
+            if idx == 0:
+                dbo.partner_register(params=point, clear=True)
+            else:
+                dbo.partner_register(params=point, clear=False)
 
         # Fit gaussian process
         data['random_state'] = np.random.get_state()
         if len(dbo.space) > 0:
+            dbo.output_space('dbo_space.csv')
+            #self.output_space('exp_space.csv')
+            start_time = time()
             dbo.fit_gp()
+            print("Model trained in {:8.2f} minutes".format((time()-start_time)/60))
+            if any(dbo._gp.kernel_.length_scale<5e-3):
+                print("Warning: Very short length scale detected when fitting Matern kernel. Retraining model...")
+                start_time = time()
+                dbo.fit_gp()
+                print("Model trained in {:8.2f} minutes".format((time() - start_time) / 60))
+            if any(dbo._gp.kernel_.length_scale>5e2):
+                print("Warning: Very long length scale detected when fitting Matern kernel.")
 
         # Refresh queue and copy old model
         self.read_batch_number()
@@ -360,6 +374,14 @@ class Experiment:
 
         # Generate batch of suggestions
         batch = dbo.suggest(utility, sampler=sampler, n_acqs=batch_size, fit_gp=False, **kwargs)
+
+        # Clear and re-register running data to partner space in optimizer (can be adjusted in capitalist)
+        running_points = self.get_running_points()
+        for idx, point in enumerate(running_points):
+            if idx == 0:
+                dbo.partner_register(params=point, clear=True)
+            else:
+                dbo.partner_register(params=point, clear=False)
         for point in batch:
             self.complement_mapping(point)
         return batch
@@ -490,7 +512,7 @@ class Experiment:
                     _points.append(point)
 
         if skipped != 0:
-            print('Warning: Ignored ' + str(skipped) + ' points.')
+            print('Warning: Ignored ' + str(skipped) + ' points in running folder.')
         return _points
 
     def skip_point(self, point):
@@ -645,12 +667,12 @@ def clean_and_generate(exp, batches_to_generate, multiprocessing=1, perform_clea
     greedy_args = {'multiprocessing': multiprocessing,
                    'n_iter': 500,
                    'n_warmup': 10000,
-                   'kappa': 2.5}
+                   'kappa': 1.5}
     capitalist_args = {'multiprocessing': multiprocessing,
-                       'exp_mean': 1,
+                       'exp_mean': 10,
                        'n_splits': 14,
-                       'n_iter': 500,
-                       'n_warmup': 10000
+                       'n_iter': 250,
+                       'n_warmup': 1000
                        }
 
     start_time = time()
@@ -734,15 +756,15 @@ def watch_queue(multiprocessing=1, sampler='greedy'):
 
 
 if __name__ == "__main__":
-    # try:
-    #     p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
-    #     p1.start()
-    #     sleep(Experiment.SLEEP_DELAY)
-    #     p2 = multiprocessing.Process(target=watch_queue, args=(14,'capitalist',)) #CPUs used for batch generation and sampler choice, Search strategy
-    #     p2.start()
-    # except:
-    #     tb = traceback.format_exc()
-    #     print(tb)
+    try:
+        p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
+        p1.start()
+        sleep(Experiment.SLEEP_DELAY)
+        p2 = multiprocessing.Process(target=watch_queue, args=(14,'capitalist',)) #CPUs used for batch generation and sampler choice, Search strategy
+        p2.start()
+    except:
+        tb = traceback.format_exc()
+        print(tb)
 
     #     ### DEBUGINING LINES ###
     #     p1 = multiprocessing.Process(target=watch_completed, args=(900,)) #Delay for model building when finding new data
@@ -750,10 +772,10 @@ if __name__ == "__main__":
     #     sleep(Experiment.SLEEP_DELAY)
     #     p2 = multiprocessing.Process(target=watch_queue, args=(4,'KMBBO',)) #CPUs used for batch generation
     #     p2.start()
-    ## IN SERIAL ###
-    try:
-        os.remove('optimizer.pickle')  # Clean start
-    except OSError:
-        pass
-    watch_queue(7, 'capitalist')
-    ## DEBUGING LINES ###
+    # ## IN SERIAL ###
+    # try:
+    #     os.remove('optimizer.pickle')  # Clean start
+    # except OSError:
+    #     pass
+    # watch_queue(7, 'greedy')
+    # ## DEBUGING LINES ###

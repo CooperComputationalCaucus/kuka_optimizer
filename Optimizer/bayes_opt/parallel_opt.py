@@ -13,7 +13,7 @@ from .target_space import _hashable
 
 from sklearn.cluster import KMeans
 
-TIMEOUT_TIME = 12 * 60 * 60  # Hours to timeout
+TIMEOUT_TIME = 4 * 60 * 60  # Hours to timeout
 
 
 class LocalOptimizer():
@@ -423,9 +423,11 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
     for idx in range(x_tries.shape[0]):
         if _hashable(x_tries[idx, :]) in instance.space:
             continue
+        elif _hashable(x_tries[idx, :]) in instance.partner_space:
+            continue
         else:
             acqs[_hashable(x_tries[idx, :])] = ys[idx]
-        if len(acqs) > n_acqs: break
+        if len(acqs) >= n_acqs: break
     acq_threshold = sorted(acqs.items(), key=lambda t: (t[1], t[0]))[0]
 
     # Explore the parameter space more throughly
@@ -644,7 +646,7 @@ def disc_capitalist_max(instance, exp_mean=1, n_splits=4, n_acqs=4, n_warmup=100
 
     Returns
     -------
-    suggestions from set of acquisition functions
+    suggestions from set of acquisition functions: list of tuples
     """
     if instance.constraints:
         ucb_max = disc_constrained_acq_max
@@ -660,47 +662,77 @@ def disc_capitalist_max(instance, exp_mean=1, n_splits=4, n_acqs=4, n_warmup=100
         utilities.append(UtilityFunction(kind='ucb', kappa=param, xi=0.0))
 
     market_sizes = [0 for _ in range(n_splits)]
-    for i in range(n_splits):
-        for j in range(n_splits):
+    while sum(market_sizes) < n_acqs:
+        for i in range(n_splits):
             if sum(market_sizes) < n_acqs:
-                market_sizes[j] += 1
+                market_sizes[i] += 1
             else:
                 break
 
     results = []
-    if multiprocessing > 1:
-        out_q = Queue()
-        procs = []
-        n_processes = min(multiprocessing, len(utilities))
-        chunksize = int(np.ceil(len(utilities) / float(n_processes)))
-        n_processes = int(np.ceil(len(utilities) / chunksize))  # For uneven splits
-        for i in range(n_processes):
-            p = Process(target=capitalist_worker,
-                        args=(ucb_max,
-                              instance,
-                              n_warmup,
-                              n_iter,
-                              complements,
-                              range(chunksize * i, chunksize * (i + 1)),
-                              utilities[chunksize * i:chunksize * (i + 1)],
-                              market_sizes[chunksize * i:chunksize * (i + 1)],
-                              out_q))
-            procs.append(p)
-            p.start()
-        resultsdict = {}
-        for i in range(n_processes):
-            resultsdict.update(out_q.get())
-        for p in procs:
-            p.join()
-        for value in resultsdict.values():
-            results.extend(value)
-    else:
-        for i in range(n_splits):
-            results.extend(ucb_max(ac=utilities[i].utility,
-                                   instance=instance,
-                                   n_acqs=market_sizes[i],
-                                   n_warmup=n_warmup,
-                                   n_iter=n_iter,
-                                   multiprocessing=multiprocessing,
-                                   complements=complements))
+    start_time = time.time()
+    while time.time() - start_time < 0.5 * TIMEOUT_TIME:
+        if multiprocessing > 1:
+            out_q = Queue()
+            procs = []
+            n_processes = min(multiprocessing, len(utilities))
+            chunksize = int(np.ceil(len(utilities) / float(n_processes)))
+            n_processes = int(np.ceil(len(utilities) / chunksize))  # For uneven splits
+            for i in range(n_processes):
+                p = Process(target=capitalist_worker,
+                            args=(ucb_max,
+                                  instance,
+                                  n_warmup,
+                                  n_iter,
+                                  complements,
+                                  range(chunksize * i, chunksize * (i + 1)),
+                                  utilities[chunksize * i:chunksize * (i + 1)],
+                                  market_sizes[chunksize * i:chunksize * (i + 1)],
+                                  out_q))
+                procs.append(p)
+                p.start()
+            resultsdict = {}
+            for i in range(n_processes):
+                resultsdict.update(out_q.get())
+            for p in procs:
+                p.join()
+            trial_results = [item for sublist in resultsdict.values() for item in sublist]
+            np.random.shuffle(trial_results)
+            for trial in trial_results:
+                if _hashable(trial) not in results:
+                    results.append(_hashable(trial))
+                    instance.partner_register(trial)
+        else:
+            for i in range(n_splits):
+                trial_results = ucb_max(ac=utilities[i].utility,
+                                        instance=instance,
+                                        n_acqs=market_sizes[i],
+                                        n_warmup=n_warmup,
+                                        n_iter=n_iter,
+                                        multiprocessing=multiprocessing,
+                                        complements=complements)
+                for trial in trial_results:
+                    if _hashable(trial) not in results:
+                        results.append(_hashable(trial))
+                        instance.partner_register(trial)
+
+        if len(results) >= n_acqs:
+            results = results[:n_acqs]
+            break
+        else:
+            print("Redundancies detected across capitalist markets. ",
+                  "Running another market level loop...",
+                  "\nTime at {:5.2f} minutes. Maximum set to {:5.2f} minutes. ".format((time.time() - start_time) / 60,
+                                                                                       TIMEOUT_TIME * 0.5 / 60),
+                  "Completed {} of {} acquisitions found".format(len(results),n_acqs))
+
+    if len(results) < n_acqs:
+        utility = UtilityFunction(kind='ucb')
+        results.extend(ucb_max(ac=utility[i].utility,
+                               instance=instance,
+                               n_acqs=n_acqs - len(results),
+                               n_warmup=n_warmup,
+                               n_iter=n_iter,
+                               multiprocessing=multiprocessing,
+                               complements=complements))
     return results
