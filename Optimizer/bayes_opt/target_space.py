@@ -399,6 +399,9 @@ class PartnerSpace(DiscreteSpace):
     This mirrors DiscreteSpace but ignores params and targets.
     Allows for constant-time appends while ensuring no duplicates are added
     '''
+
+    def __len__(self):
+        return len(self._cache)
     
     def clear(self):
         self._discrete_cache = {}
