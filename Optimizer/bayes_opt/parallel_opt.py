@@ -410,7 +410,7 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
             continue
         while ~mask[idx]:
             mask[idx] = True
-            proposal = instance.constrained_rng(1, bin=True)
+            proposal = instance.constrained_rng(1, bin=True).reshape(-1,)
             for dict in instance.get_constraint_dict():
                 if dict['fun'](proposal) < 0: mask[idx] = False
 
@@ -453,7 +453,7 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
             continue
         while ~mask[idx]:
             mask[idx] = True
-            proposal = instance.constrained_rng(1, bin=False)
+            proposal = instance.constrained_rng(1, bin=False).reshape(-1,)
             for dict in instance.get_constraint_dict():
                 if dict['fun'](proposal) < 0: mask[idx] = False
 
