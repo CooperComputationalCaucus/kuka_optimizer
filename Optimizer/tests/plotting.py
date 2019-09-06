@@ -1,5 +1,4 @@
 from Optimizer.bayes_opt import UtilityFunction
-
 import numpy as np
 import pickle
 import pandas as pd
@@ -9,14 +8,15 @@ from mpl_toolkits.mplot3d import axes3d
 from matplotlib import cm
 import matplotlib
 from matplotlib.font_manager import FontProperties
+import os
 
 matplotlib.matplotlib_fname()
 matplotlib.font_manager._rebuild()
 font = {'size': 18}
 matplotlib.rc('font', **font)
 
-def check_dist(gp, a, b):
-    threshold = 0.6
+
+def check_dist(gp, a, b, threshold=0.6):
     if gp.kernel_(a.reshape(1, -1), b.reshape(1, -1)) > threshold:
         return True
     else:
@@ -28,7 +28,7 @@ def posterior(gp, grid):
     return mu, sigma
 
 
-def plot_gp_1d(gp, df, axis, vector=None, utility_function=None, path=None, dpi=300):
+def plot_gp_1d(gp, df, axis, vector=None, utility_function=None, path=None, dpi=300, threshold=0.6):
     """
 
     Parameters
@@ -40,6 +40,7 @@ def plot_gp_1d(gp, df, axis, vector=None, utility_function=None, path=None, dpi=
     utility_function: instance of UtilityFunction, default to ucb ('greedy') 2.5.
     path: path for plot saving if desired
     dpi: dots per inch for output figure
+    threshold: threshold for kernel simialrity measure
 
     Returns
     -------
@@ -74,7 +75,7 @@ def plot_gp_1d(gp, df, axis, vector=None, utility_function=None, path=None, dpi=
     mask = np.zeros(len(X), dtype=bool)
     for i in range(len(X)):
         vector[axis] = X.iloc[i, axis]
-        mask[i] = check_dist(gp, np.array(X.iloc[i]), np.array(vector))
+        mask[i] = check_dist(gp, np.array(X.iloc[i]), np.array(vector), threshold)
     x_near = X[mask]
     y_near = y[mask]
     x_far = X[(mask != True)]
@@ -124,12 +125,12 @@ def plot_gp_1d(gp, df, axis, vector=None, utility_function=None, path=None, dpi=
 
     ax.legend(loc=1, borderaxespad=0.5)
     acq.legend(loc=1, borderaxespad=0.5)
-    if path: plt.savefig(path, dpi=300)
+    if path: plt.savefig(path, dpi=dpi)
 
     return fig
 
 
-def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dpi=300):
+def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dpi=300, threshold=0.6):
     """
     Plots gp along a specific from complete dataset along a specified
     vector in space for a given axis. If no vector is given, a zero vector
@@ -147,6 +148,7 @@ def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dp
     utility_function: instance of UtilityFunction, default to ucb ('greedy') 2.5.
     path: path for plot saving if desired
     dpi: dots per inch for figure output
+    threshold: threshold for kernel simialrity measure
 
     Returns
     -------
@@ -189,7 +191,7 @@ def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dp
     for i in range(len(X)):
         vector[a1] = X.iloc[i, a1]
         vector[a2] = X.iloc[i, a2]
-        mask[i] = check_dist(gp, np.array(X.iloc[i]), np.array(vector))
+        mask[i] = check_dist(gp, np.array(X.iloc[i]), np.array(vector), threshold)
     x_near = X[mask]
     y_near = y[mask]
     x_far = X[(mask != True)]
@@ -261,3 +263,33 @@ def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dp
 
     if path: plt.savefig(path, dpi=dpi)
     return fig
+
+
+def plot_correlations(df, directory='./', save=False):
+    try:
+        target_corr = df.corrwith(df.Target)
+        f1 = plt.figure(figsize=(20, 8))
+        plt.matshow(np.expand_dims(np.array(target_corr[:-1]), axis=0),
+                    fignum=f1.number)
+        plt.xticks(range(df.shape[1] - 1), df.columns[:-1], rotation=75)
+        plt.yticks([])
+        cb = plt.colorbar()
+        plt.title('Target Correlation', y=3, fontweight="bold");
+        plt.show()
+        if save:
+            f1.savefig(os.path.join(directory, 'target_correlation.png'))
+    except AttributeError:
+        print('Not set up for working without Target series in DataFrame')
+
+    # 2-d matrix
+    cross_correlation = df.corr()
+    f2 = plt.figure(figsize=(22, 16))
+    plt.matshow(cross_correlation, fignum=f2.number)
+    plt.xticks(range(df.shape[1]), df.columns, rotation=75)
+    plt.yticks(range(df.shape[1]), df.columns)
+    cb = plt.colorbar()
+    plt.title('Correlation Matrix', y=1.15, fontweight="bold")
+    if save:
+        f2.savefig(os.path.join(directory, 'cross_correlation.png'),
+                   bbox_inches="tight")
+    return f1, f2
