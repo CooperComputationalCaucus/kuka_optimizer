@@ -10,7 +10,7 @@ from .parallel_opt import disc_acq_max, disc_acq_KMBBO
 from .parallel_opt import disc_constrained_acq_max, disc_constrained_acq_KMBBO
 from .parallel_opt import disc_capitalist_max
 
-from sklearn.gaussian_process.kernels import Matern
+from sklearn.gaussian_process.kernels import Matern, WhiteKernel, ConstantKernel
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 import pandas as pd
@@ -286,15 +286,18 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         self.partner_space = PartnerSpace(f, prange, random_state)
 
         length_scale = list(self._space._steps)
-        self._gp = GaussianProcessRegressor(
-            kernel=Matern(length_scale=length_scale,
-                          length_scale_bounds=(1e-3, 1e3),
-                          nu=2.5),
-            alpha=1e-2,
-            normalize_y=True,
-            n_restarts_optimizer=10*self.space.dim,
-            random_state=self._random_state
-        )
+        kernel = Matern(length_scale=length_scale,
+                        length_scale_bounds=(1e-01, 1e4),
+                        nu=2.5) * \
+                 ConstantKernel(1.0, (0.5, 5)) + \
+                 WhiteKernel(noise_level=0.1,
+                             noise_level_bounds=(5e-02, 7e-1))
+        self._gp = GaussianProcessRegressor(kernel=kernel,
+                                            alpha=1e-6,
+                                            normalize_y=False,
+                                            n_restarts_optimizer=10 * self.space.dim,
+                                            random_state=self._random_state)
+
 
     def probe(self, params, lazy=True):
         """Probe target of x"""
