@@ -4,13 +4,14 @@ import time
 import numpy as np
 from Optimizer.bayes_opt import UtilityFunction
 
-N_THREADS = 4
+N_THREADS = 1
 
 
 def print_avg_distance(points):
     x = np.array([list(point.values()) for point in points])
     distance_sum = 0
     cnt = 0
+
     n = len(points)
     for i in range(n):
         for j in range(n):
@@ -67,12 +68,13 @@ def run_function(func, prange, sampler, constraints=[], complements=False, verbo
                                       sampler=sampler,
                                       n_acqs=batch_size,
                                       **kwargs)
-        if verbose == 2:
+        if verbose == 3:
             print_avg_distance(next_points)
 
         for next_point in next_points:
             for key in next_point:
                 next_point[key] += np.random.uniform(-.001, .001)  # makes discrete point different than bin
+                if next_point[key]<0: next_point[key] = 0.
             target = func(**next_point)
             dbo.register(params=next_point, target=target)
             if target > max_val['val']:
@@ -175,6 +177,98 @@ def run_parabolic(dim=4, constrained=True, verbose=True, batch_size=12, init_ran
     return results
 
 
+def run_GP_model(prange={}, path=None, constraints=[], verbose=True, batch_size=12, init_random=3, n_batches=25,
+                 strategy="all", **kwargs):
+    """
+
+    Parameters
+    ----------
+    prange
+    path
+    constraints
+    verbose
+    batch_size
+    init_random
+    n_batches
+    strategy
+    kwargs
+
+    Returns
+    -------
+    results
+    """
+    from Optimizer.tests.test_functions import GPVirtualModel
+    virtual_model = GPVirtualModel(path)
+    pbounds = {}
+    if not prange:
+        prange = {}
+        dim = virtual_model.dim
+        for i in range(dim):
+            prange['x_{}'.format(i)] = (0, 1, 0.01)
+            pbounds['x_{}'.format(i)] = (0, 1)
+    else:
+        for key, value in prange.items():
+            pbounds[key] = (value[0], value[1])
+    func = virtual_model.f
+    print("Experimental optimum {:.3f} is at: {}".format(virtual_model.exp_max, virtual_model.param_max))
+    results = {}
+
+    # Capitalist sampling parameters
+    if strategy == "all" or strategy == "capitalist":
+        capitalist_args = {'multiprocessing': N_THREADS,
+                           'exp_mean': 1,
+                           'n_splits': 4,
+                           'n_iter': 250,
+                           'n_warmup': 1000}
+        capitalist_args.update(kwargs)
+        results['capitalist'] = run_function(func,
+                                             prange,
+                                             sampler='capitalist',
+                                             constraints=constraints,
+                                             verbose=verbose,
+                                             batch_size=batch_size,
+                                             init_random=init_random,
+                                             n_batches=n_batches,
+                                             expected_max=virtual_model.exp_max,
+                                             **capitalist_args
+                                             )
+    # Greedy sampling parameters
+    if strategy == "all" or strategy == "greedy":
+        greedy_args = {'multiprocessing': N_THREADS,
+                       'n_iter': 250,
+                       'n_warmup': 10000,
+                       'kappa': 2.5}
+        greedy_args.update(kwargs)
+        results["greedy"] = run_function(func,
+                                         prange,
+                                         sampler='greedy',
+                                         constraints=constraints,
+                                         verbose=verbose,
+                                         batch_size=batch_size,
+                                         init_random=init_random,
+                                         n_batches=n_batches,
+                                         expected_max=virtual_model.exp_max,
+                                         **greedy_args)
+
+    # KMMBO sampling parameters
+    if strategy == "all" or strategy == "KMBBO":
+        KMBBO_args = {'multiprocessing': N_THREADS,
+                      'n_slice': 500}
+        KMBBO_args.update(kwargs)
+        results['KMBBO'] = run_function(func,
+                                        prange,
+                                        sampler='KMBBO',
+                                        constraints=constraints,
+                                        verbose=verbose,
+                                        batch_size=batch_size,
+                                        init_random=init_random,
+                                        n_batches=n_batches,
+                                        expected_max=virtual_model.exp_max,
+                                        **KMBBO_args)
+
+    return results
+
+
 def loop_parabolic(dims=[3, 4, 5], constrained=True, verbose=True, batch_size=12, init_random=3, n_batches=25,
                    strategy="all",
                    strat_args=[]):
@@ -212,6 +306,33 @@ def loop_parabolic(dims=[3, 4, 5], constrained=True, verbose=True, batch_size=12
                                     n_batches=n_batches,
                                     strategy=strategy,
                                     **kwargs)
+                results[str(kwargs)][i] = res[strategy]
+        return results
+
+
+def loop_GP_model(prange={}, path=None, constraints=[], verbose=True, batch_size=12, init_random=3,
+                  n_batches=25, strategy="all", strat_args=[]):
+    if strategy == "all":
+        run_GP_model(prange=prange,
+                     path=path,
+                     constraints=constraints,
+                     verbose=verbose,
+                     batch_size=batch_size,
+                     init_random=init_random,
+                     n_batches=n_batches)
+    else:
+        results = {}
+        for kwargs in strat_args:
+            print(kwargs)
+            results[str(kwargs)] = {}
+            for i in range(1):
+                res = run_GP_model(prange=prange,
+                                   path=path,
+                                   constraints=constraints,
+                                   verbose=verbose,
+                                   n_batches=n_batches,
+                                   strategy=strategy,
+                                   **kwargs)
                 results[str(kwargs)][i] = res[strategy]
         return results
 
@@ -400,6 +521,7 @@ def single_greedy():
                   strategy="greedy",
                   **greedy_args)
 
+
 def single_capitalist():
     capitalist_args = {'multiprocessing': N_THREADS,
                        'exp_mean': 1,
@@ -416,8 +538,37 @@ def single_capitalist():
                   strategy="capitalist",
                   **capitalist_args)
 
+
+def gp_main():
+    prange = {'AcidRed871_0gL': (0, 5, .25),
+              'L-Cysteine-50gL': (0, 5, .25),
+              'MethyleneB_250mgL': (0, 5, .25),
+              'NaCl-3M': (0, 5, .25),
+              'NaOH-1M': (0, 5, .25),
+              'PVP-1wt': (0, 5, .25),
+              'RhodamineB1_0gL': (0, 5, .25),
+              'SDS-1wt': (0, 5, .25),
+              'Sodiumsilicate-1wt': (0, 5, .25)}
+    path = 'GPVirtualModel.pkl'
+    constraints = [
+        '5 - L-Cysteine-50gL - NaCl-3M - NaOH-1M - PVP-1wt - SDS-1wt - Sodiumsilicate-1wt - AcidRed871_0gL - '
+        'RhodamineB1_0gL - MethyleneB_250mgL']
+    strat_args = [
+                  {'batch_size': 14, 'n_splits': 14, 'init_random': 1, 'exp_mean': 5}
+                  ]
+    res = loop_GP_model(prange=prange,
+                        path=path,
+                        constraints=constraints,
+                        strategy='capitalist',
+                        strat_args=strat_args,
+                        verbose=2,
+                        n_batches=15)
+
+    print(res)
+
 if __name__ == '__main__':
-    single_capitalist()
+    gp_main()
+    # single_capitalist()
     # single_greedy()
     # capitalism_main()
     # greedy_main()
