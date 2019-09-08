@@ -400,23 +400,34 @@ class DiscreteBayesianOptimization(BayesianOptimization):
                                 rem_max_val += pd.eval(reduction, local_dict={'x': x[i, :]})
                         else:
                             x[i, complement] = random_state.uniform(bounds[complement, 0], bounds[complement, 1])
+                    # Removing lower bound greater than 0 from rem_max_val and adding in later
+                    for j in range(n_var):
+                        if j in complements:
+                            continue
+                        elif 'x[{}]'.format(j) in self.constraints[0]:
+                            rem_max_val -= bounds[j, 0]
                 rnd = get_rnd_quantities(rem_max_val, n_constrained_var, random_state)
                 cnt = 0
                 for j in range(n_var):
                     if j in complements:
                         continue
                     elif 'x[{}]'.format(j) in self.constraints[0]:
-                        x[i, j] = min(rnd[cnt], bounds[j, 1])
+                        x[i, j] = min(rnd[cnt]+bounds[j, 0], bounds[j, 1])
                         cnt += 1
                     else:
                         x[i, j] = random_state.uniform(bounds[j, 0], bounds[j, 1])
         else:
+            # Removing lower bound greater than 0 from rem_max_val and adding in later
+            rem_max_val = max_val
+            for j in range(n_var):
+                if 'x[{}]'.format(j) in self.constraints[0]:
+                    rem_max_val -= bounds[j, 0]
             for i in range(n_points):
                 cnt = 0
-                rnd = get_rnd_quantities(max_val, n_constrained_var, random_state)
+                rnd = get_rnd_quantities(rem_max_val, n_constrained_var, random_state)
                 for j in range(n_var):
                     if 'x[{}]'.format(j) in self.constraints[0]:
-                        x[i, j] = min(rnd[cnt], bounds[j, 1])
+                        x[i, j] = min(rnd[cnt]+bounds[j, 0], bounds[j, 1])
                         cnt += 1
                     else:
                         x[i, j] = random_state.uniform(bounds[j, 0], bounds[j, 1])
@@ -424,10 +435,15 @@ class DiscreteBayesianOptimization(BayesianOptimization):
         for i in range(n_points,n_nonuniform+n_points):
             rem_max_val = max_val
             var_list = list(range(n_var))
+            # Removing lower bound greater than 0 from rem_max_val and adding in later
+            rem_max_val = max_val
+            for j in range(n_var):
+                if 'x[{}]'.format(j) in self.constraints[0]:
+                    rem_max_val -= bounds[j, 0]
             while var_list:
                 j = var_list.pop(np.random.choice(range(len(var_list))))
                 if 'x[{}]'.format(j) in self.constraints[0]:
-                    x[i, j] = np.random.uniform(bounds[j, 0], min(bounds[j, 1], rem_max_val))
+                    x[i, j] = np.random.uniform(0, min(bounds[j, 1]-bounds[j, 0], rem_max_val)) + bounds[j, 0]
                     if j in complements:
                         reductions = []
                         p = re.compile(
@@ -449,7 +465,7 @@ class DiscreteBayesianOptimization(BayesianOptimization):
                             for reduction in reductions:
                                 rem_max_val += pd.eval(reduction, local_dict={'x': x[i, :]})
                     else:
-                        rem_max_val -= x[i,j]
+                        rem_max_val -= (x[i, j] - bounds[j, 0])
                 else:
                     x[i, j] = random_state.uniform(bounds[j, 0], bounds[j, 1])
         if bin:
