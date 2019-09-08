@@ -177,8 +177,8 @@ def run_parabolic(dim=4, constrained=True, verbose=True, batch_size=12, init_ran
     return results
 
 
-def run_GP_model(prange={}, path=None, constraints=[], verbose=True, batch_size=12, init_random=3, n_batches=25,
-                 strategy="all", **kwargs):
+def run_GP_model(prange={}, path=None, constraints=[], noisy = False, verbose=True, batch_size=12, init_random=3,
+                 n_batches=25, strategy="all", **kwargs):
     """
 
     Parameters
@@ -198,7 +198,7 @@ def run_GP_model(prange={}, path=None, constraints=[], verbose=True, batch_size=
     results
     """
     from Optimizer.tests.test_functions import GPVirtualModel
-    virtual_model = GPVirtualModel(path)
+    virtual_model = GPVirtualModel(path, noisy=noisy)
     pbounds = {}
     if not prange:
         prange = {}
@@ -310,7 +310,7 @@ def loop_parabolic(dims=[3, 4, 5], constrained=True, verbose=True, batch_size=12
         return results
 
 
-def loop_GP_model(prange={}, path=None, constraints=[], verbose=True, batch_size=12, init_random=3,
+def loop_GP_model(prange={}, path=None, constraints=[], noisy=False, verbose=True, batch_size=12, init_random=3,
                   n_batches=25, strategy="all", strat_args=[]):
     if strategy == "all":
         run_GP_model(prange=prange,
@@ -319,6 +319,7 @@ def loop_GP_model(prange={}, path=None, constraints=[], verbose=True, batch_size
                      verbose=verbose,
                      batch_size=batch_size,
                      init_random=init_random,
+                     noisy=noisy,
                      n_batches=n_batches)
     else:
         results = {}
@@ -332,6 +333,7 @@ def loop_GP_model(prange={}, path=None, constraints=[], verbose=True, batch_size
                                    verbose=verbose,
                                    n_batches=n_batches,
                                    strategy=strategy,
+                                   noisy=noisy,
                                    **kwargs)
                 results[str(kwargs)][i] = res[strategy]
         return results
@@ -554,13 +556,14 @@ def gp_main():
         '5 - L-Cysteine-50gL - NaCl-3M - NaOH-1M - PVP-1wt - SDS-1wt - Sodiumsilicate-1wt - AcidRed871_0gL - '
         'RhodamineB1_0gL - MethyleneB_250mgL']
     strat_args = [
-                  {'batch_size': 14, 'n_splits': 14, 'init_random': 1, 'exp_mean': 5}
+                  {'batch_size': 14, 'n_splits': 14, 'init_random': 1, 'exp_mean': 2.5}
                   ]
     res = loop_GP_model(prange=prange,
                         path=path,
                         constraints=constraints,
                         strategy='capitalist',
                         strat_args=strat_args,
+                        noisy=True,
                         verbose=2,
                         n_batches=15)
 

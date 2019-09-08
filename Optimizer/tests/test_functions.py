@@ -123,7 +123,7 @@ class GPVirtualModel():
 
     """
 
-    def __init__(self, path=None):
+    def __init__(self, path=None, noisy=False):
         import pickle
         """
         Parameters
@@ -145,6 +145,7 @@ class GPVirtualModel():
             gp = pickle.load(file)
         self.f = self.func
         self.gp = gp
+        self.noisy = noisy
 
     @property
     def dim(self):
@@ -162,7 +163,10 @@ class GPVirtualModel():
         x = np.zeros(len(self.var_map))
         for key, idx in self.var_map.items():
             x[idx] = point[key]
-        return self.gp.predict(x.reshape(1,-1))[0]
+        if self.noisy:
+            return self.gp.predict(x.reshape(1,-1))[0] + np.random.uniform(-.5, .5)
+        else:
+            return self.gp.predict(x.reshape(1, -1))[0]
 
 
 class HERVirtualModel():
