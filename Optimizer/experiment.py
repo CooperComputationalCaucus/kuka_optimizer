@@ -19,8 +19,8 @@ import math
 
 class Experiment:
     MINI_BATCH = 16
-    BATCH = 48
-    BATCH_FILES = 3  # number of files that we want to see in the queue, should be BATCH/BATCH_FILES = MINI_BATCH
+    BATCH = 16
+    BATCH_FILES = 1  # number of files that we want to see in the queue, should be BATCH/BATCH_FILES = MINI_BATCH
     SLEEP_DELAY = 5  # delay in seconds before querying the queue folder again
 
     directory_path = './'
@@ -311,16 +311,18 @@ class Experiment:
             start_time = time()
             dbo.fit_gp()
             print("Model trained in {:8.2f} minutes".format((time()-start_time)/60))
-            if any(dbo._gp.kernel_.length_scale<5e-3):
+            if any(dbo._gp.kernel_.k1.k1.length_scale<5e-3):
                 print("Warning: Very short length scale detected when fitting Matern kernel. Retraining model...")
                 start_time = time()
                 dbo.fit_gp()
                 print("Model trained in {:8.2f} minutes".format((time() - start_time) / 60))
-            if any(dbo._gp.kernel_.length_scale>5e2):
+            if any(dbo._gp.kernel_.k1.k1.length_scale>5e2):
                 print("Warning: Very long length scale detected when fitting Matern kernel.")
             print("Model length scales:")
-            for key, value in dict(zip(dbo.space.keys, dbo._gp.kernel_.length_scale)).items():
+            for key, value in dict(zip(dbo.space.keys, dbo._gp.kernel_.k1.k1.length_scale)).items():
                 print("{}: {:8.4f}".format(key, value))
+            print("Model noise: {}".format(dbo._gp.kernel_.k2.noise_level))
+            print("Model constant scale: {}".format(dbo._gp.kernel_.k1.k2.constant_value))
         # Refresh queue and copy old model
         self.read_batch_number()
         fname = os.path.join(self.directory_path, 'optimizer.pickle')
@@ -637,8 +639,16 @@ class Experiment:
                                 point[comp] = 0
                             # print(f"Warning! {comp} was not found in the file {filename}")
                     self.complement_mapping(point)
+                    # ### TEST BLOCK ###
+                    # print("Using test block in update_points_and_targets. This should not be in deployment")
+                    # if np.random.uniform() < 1:
+                    #     self.points.append(point)
+                    #     self.targets.append(f_targets[idx])
+                    # ### TEST BLOCK ###
+                    ### REAL BLOCK ###
                     self.points.append(point)
                     self.targets.append(f_targets[idx])
+                    ### REAL BLOCK ###
 
             if skipped != 0:
                 print('Warning: Ignored ' + str(skipped) + ' points.')
@@ -671,7 +681,7 @@ def clean_and_generate(exp, batches_to_generate, multiprocessing=1, perform_clea
                    'n_warmup': 10000,
                    'kappa': 1.5}
     capitalist_args = {'multiprocessing': multiprocessing,
-                       'exp_mean': 10,
+                       'exp_mean': 2.5,
                        'n_splits': 14,
                        'n_iter': 250,
                        'n_warmup': 1000
