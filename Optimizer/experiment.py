@@ -276,6 +276,8 @@ class Experiment:
         ----------
         dbo: instance of DiscreteBayesianOptimization
         '''
+
+        exp.clean_queue()
         data = {}  # Data dictionary to be saved
 
         prange = self.dbo_ranges
