@@ -674,6 +674,10 @@ class Experiment:
 
 
 def clean_and_generate(exp, batches_to_generate, multiprocessing=1, perform_clean=False, sampler='greedy'):
+
+    if (perform_clean):
+        exp.clean_queue()
+
     KMBBO_args = {'multiprocessing': multiprocessing,
                   'n_slice': 500}
     greedy_args = {'multiprocessing': multiprocessing,
@@ -702,8 +706,6 @@ def clean_and_generate(exp, batches_to_generate, multiprocessing=1, perform_clea
         raise ValueError("No sampler named {}".format(sampler))
 
     print("Batch was generated in {:.2f} minutes. Submitting.\n".format((time() - start_time) / 60))
-    if (perform_clean):
-        exp.clean_queue()
 
     # add constants
     for i in range(len(batch)):
