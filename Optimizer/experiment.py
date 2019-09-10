@@ -390,6 +390,7 @@ class Experiment:
         utility = UtilityFunction(kind=utility_kind, kappa=kappa, xi=xi)
 
         # Generate batch of suggestions
+        dbo.reset_rng()
         batch = dbo.suggest(utility, sampler=sampler, n_acqs=batch_size, fit_gp=False, **kwargs)
 
         # Clear and re-register running data to partner space in optimizer (can be adjusted in capitalist)

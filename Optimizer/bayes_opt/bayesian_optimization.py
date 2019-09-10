@@ -162,6 +162,9 @@ class BayesianOptimization(Observable):
 
         return self._space.array_to_params(suggestion)
 
+    def reset_rng(self, random_state=None):
+        self._random_state = ensure_rng(random_state)
+
     def _prime_queue(self, init_points):
         """Make sure there's something in the queue at the very beginning."""
         if self._queue.empty and self._space.empty:
