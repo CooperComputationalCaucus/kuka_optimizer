@@ -99,7 +99,7 @@ class Parser:
         '''
         try:
             newly_processed = []
-            for f in os.listdir(self.directory_path+'completed/'):
+            for f in sorted(os.listdir(self.directory_path+'completed/')):
                 if os.path.isfile(self.directory_path+'completed/'+f) and os.path.splitext(f)[1]=='.run':
                     if f not in self.processed_files:
                         if self.process_completed_file(f, experiment_name):
