@@ -240,9 +240,6 @@ class BayesianOptimization(Observable):
         '''
         Develops inequality constraints ONLY. (>=0)
         '''
-        # TODO: write function to return scipy constraint dictionary for optimizer
-        # TODO: write options for equality constraints (incorporate in randomizer)
-        # TODO: write options for jacobian if needed?
         dicts = []
         funcs = []
         for idx, constraint in enumerate(self.constraints):
