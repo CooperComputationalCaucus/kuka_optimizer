@@ -262,6 +262,17 @@ class Experiment:
         df['Target'] = self.targets
         df.to_csv(path)
 
+    def clear_previous_model(self):
+        '''
+        Moves previous model to past model folder
+        data = {}  # Data dictionary to be saved
+
+        '''
+        fname = os.path.join(self.directory_path, 'optimizer.pickle')
+        if os.path.isfile(fname):
+            copyfile(fname,
+                     os.path.join(self.directory_path, 'models', 'state_{}.pickle'.format(self.batch_number - 1)))
+            os.remove(fname)
 
     def generate_model(self, verbose=0, random_state=None):
         '''
@@ -731,7 +742,7 @@ def watch_completed(lag_time=900):
     for f in os.listdir(completed_dir):
         if os.path.isfile(os.path.join(completed_dir, f)): n_files += 1
     # Automatically generate model at restart
-    exp.generate_model()
+    exp.clear_previous_model()
 
     while True:
         count = 0
