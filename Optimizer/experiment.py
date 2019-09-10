@@ -730,6 +730,8 @@ def watch_completed(lag_time=900):
     n_files = 0
     for f in os.listdir(completed_dir):
         if os.path.isfile(os.path.join(completed_dir, f)): n_files += 1
+    # Automatically generate model at restart
+    exp.generate_model()
 
     while True:
         count = 0
