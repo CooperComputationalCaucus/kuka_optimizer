@@ -72,7 +72,7 @@ class Observable(object):
 
 
 class BayesianOptimization(Observable):
-    def __init__(self, f, pbounds, random_state=None, verbose=2, constraints=[], constraint_types=[]):
+    def __init__(self, f, pbounds, random_state=None, verbose=2, constraints=[]):
         """"""
         self._random_state = ensure_rng(random_state)
 
@@ -97,11 +97,6 @@ class BayesianOptimization(Observable):
         # array constraints correspond to point in array row
         self._key_constraints = constraints
         self._array_constraints = self.array_like_constraints()
-        # Allow for constraint types, defaulting to inequality
-        for t in constraint_types:
-            if t not in ['eq', 'ineq']:
-                t = 'ineq'
-        self.constraint_types = constraint_types
         super(BayesianOptimization, self).__init__(events=DEFAULT_EVENTS)
 
     @property
@@ -245,13 +240,15 @@ class BayesianOptimization(Observable):
         '''
         Develops inequality constraints ONLY. (>=0)
         '''
+        # TODO: write function to return scipy constraint dictionary for optimizer
+        # TODO: write options for equality constraints (incorporate in randomizer)
         # TODO: write options for jacobian if needed?
         dicts = []
         funcs = []
         for idx, constraint in enumerate(self.constraints):
             st = "def f_{}(x): return pd.eval({})\nfuncs.append(f_{})".format(idx, constraint, idx)
             exec(st)
-            dicts.append({'type': self.constraint_types[idx],
+            dicts.append({'type': 'ineq',
                           'fun': funcs[idx]})
         return dicts
 
@@ -278,18 +275,13 @@ class DiscreteBayesianOptimization(BayesianOptimization):
     
     '''
 
-    def __init__(self, f, prange, random_state=None, verbose=2, constraints=[], constraint_types=[]):
+    def __init__(self, f, prange, random_state=None, verbose=2, constraints=[]):
         """"""
 
         # Data structure containing the function to be optimized, the bounds of
         # its domain, and a record of the evaluations we have done so far
         self._pbounds = {item[0]: (item[1][:2]) for item in sorted(prange.items(), key=lambda x: x[0])}
-        super(DiscreteBayesianOptimization, self).__init__(f,
-                                                           self._pbounds,
-                                                           random_state,
-                                                           verbose,
-                                                           constraints,
-                                                           constraint_types)
+        super(DiscreteBayesianOptimization, self).__init__(f, self._pbounds, random_state, verbose, constraints)
         self._space = DiscreteSpace(f, prange, random_state)
         self.partner_space = PartnerSpace(f, prange, random_state)
 
@@ -372,9 +364,6 @@ class DiscreteBayesianOptimization(BayesianOptimization):
                 n_constrained_var += 1
         # Get extra points from nonuniformity
         n_nonuniform = int(n_points * n_var/50)
-        ###TEST BLOCK###
-        n_nonuniform=0
-        ###TEST BLOCK###
         n_points -= n_nonuniform
         # Initialize randoms
         x = np.zeros((n_points+n_nonuniform, n_var))
@@ -417,7 +406,7 @@ class DiscreteBayesianOptimization(BayesianOptimization):
                             continue
                         elif 'x[{}]'.format(j) in self.constraints[0]:
                             rem_max_val -= bounds[j, 0]
-                rnd = get_rnd_quantities(rem_max_val, n_constrained_var, random_state, self.constraint_types[0])
+                rnd = get_rnd_quantities(rem_max_val, n_constrained_var, random_state)
                 cnt = 0
                 for j in range(n_var):
                     if j in complements:
@@ -435,7 +424,7 @@ class DiscreteBayesianOptimization(BayesianOptimization):
                     rem_max_val -= bounds[j, 0]
             for i in range(n_points):
                 cnt = 0
-                rnd = get_rnd_quantities(rem_max_val, n_constrained_var, random_state, self.constraint_types[0])
+                rnd = get_rnd_quantities(rem_max_val, n_constrained_var, random_state)
                 for j in range(n_var):
                     if 'x[{}]'.format(j) in self.constraints[0]:
                         x[i, j] = min(rnd[cnt]+bounds[j, 0], bounds[j, 1])

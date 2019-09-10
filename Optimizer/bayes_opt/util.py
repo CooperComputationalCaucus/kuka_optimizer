@@ -4,6 +4,7 @@ from scipy.stats import norm
 from scipy.optimize import minimize
 
 
+
 def acq_max(ac, gp, y_max, bounds, random_state, n_warmup=100000, n_iter=250):
     """
     A function to find the maximum of the acquisition function
@@ -273,21 +274,15 @@ def get_rng_complement(dimension, random_state):
     return 0.5 + get_rnd_simplex(dimension, random_state)[0] * [-0.5, 0.5][np.random.randint(2)]
 
 
-def get_rnd_quantities(max_amount, dimension, random_state, type):
+def get_rnd_quantities(max_amount, dimension, random_state):
     '''
     Get an array of quantities x_i>=0 which sum up to max_amount at most.
 
     This samples a unit simplex uniformly, then scales the sampling by a value m between  0 and max amount,
     with a probability proportionate to the volume of a regular simplex with vector length m.
     '''
-
     r = random_state.uniform(0, 1)
-    if type == 'eq':
-        m = max_amount
-    elif type == 'ineq':
-        m = (r * (max_amount ** (dimension + 1))) ** (1 / (dimension + 1))
-    else:
-        m = (r * (max_amount ** (dimension + 1))) ** (1 / (dimension + 1))
+    m = (r * (max_amount ** (dimension + 1))) ** (1 / (dimension + 1))
     return get_rnd_simplex(dimension, random_state) * m
 
 

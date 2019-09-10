@@ -34,7 +34,6 @@ class Experiment:
         self.rng = {}  # Ranges with resolution, e.g. rng['P10'] = {'lo' : 0, 'hi' : 1, 'res' : 0.1}
         self.dbo_ranges = {}  # Ranges with resolution formated for dbo (including maping of complements)
         self.constraints = []  # list of the constraints that points should satisfy, e.g.
-        self.constraint_types = [] # list of the constriant types for each constraint (inequality for soft, equality for hard)
         self.controls = []  # list of the control experiments to include in each minibatch
         self.complements = {}  # Mapping of all complementary variables to single dimensions in optimizer space {'!Complement!_01' : {}}
 
@@ -63,7 +62,6 @@ class Experiment:
                 # compounds list is expected first
                 compounds_section = True
                 constraints_section = False
-                hard_constraints_section = False
                 controls_section = False
                 complements_section = False
 
@@ -77,28 +75,18 @@ class Experiment:
                     else:
                         if line.startswith("Constraints"):
                             constraints_section = True
-                            hard_constraints_section = False
-                            compounds_section = False
-                            controls_section = False
-                            complements_section = False
-                            continue
-                        elif line.startswith("Hard Constraints"):
-                            constraints_section = False
-                            hard_constraints_section = True
                             compounds_section = False
                             controls_section = False
                             complements_section = False
                             continue
                         elif line.startswith("Controls"):
                             constraints_section = False
-                            hard_constraints_section = False
                             compounds_section = False
                             controls_section = True
                             complements_section = False
                             continue
                         elif line.startswith("Complements"):
                             constraints_section = False
-                            hard_constraints_section = False
                             compounds_section = False
                             controls_section = False
                             complements_section = True
@@ -127,11 +115,6 @@ class Experiment:
 
                         if constraints_section:
                             self.constraints.append(line.rstrip())
-                            self.constraint_types.append('ineq')
-
-                        if hard_constraints_section:
-                            self.constraints.append(line.rstrip())
-                            self.constraint_types.append('eq')
 
                         if controls_section:
                             cols = line.rstrip().split(sep=',')
@@ -303,8 +286,7 @@ class Experiment:
                                            prange=prange,
                                            verbose=verbose,
                                            random_state=random_state,
-                                           constraints=self.constraints,
-                                           constraint_types=self.constraint_types)
+                                           constraints=self.constraints)
         if verbose:
             dbo._prime_subscriptions()
             dbo.dispatch(Events.OPTMIZATION_START)
@@ -792,15 +774,15 @@ def watch_queue(multiprocessing=1, sampler='greedy'):
 
 
 if __name__ == "__main__":
-    # try:
-    #     p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
-    #     p1.start()
-    #     sleep(Experiment.SLEEP_DELAY)
-    #     p2 = multiprocessing.Process(target=watch_queue, args=(14,'capitalist',)) #CPUs used for batch generation and sampler choice, Search strategy
-    #     p2.start()
-    # except:
-    #     tb = traceback.format_exc()
-    #     print(tb)
+    try:
+        p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
+        p1.start()
+        sleep(Experiment.SLEEP_DELAY)
+        p2 = multiprocessing.Process(target=watch_queue, args=(14,'capitalist',)) #CPUs used for batch generation and sampler choice, Search strategy
+        p2.start()
+    except:
+        tb = traceback.format_exc()
+        print(tb)
 
     #     ### DEBUGINING LINES ###
     #     p1 = multiprocessing.Process(target=watch_completed, args=(900,)) #Delay for model building when finding new data
@@ -809,9 +791,9 @@ if __name__ == "__main__":
     #     p2 = multiprocessing.Process(target=watch_queue, args=(4,'KMBBO',)) #CPUs used for batch generation
     #     p2.start()
     # ## IN SERIAL ###
-    try:
-        os.remove('optimizer.pickle')  # Clean start
-    except OSError:
-        pass
-    watch_queue(1, 'greedy')
-    ## DEBUGING LINES ###
+    # try:
+    #     os.remove('optimizer.pickle')  # Clean start
+    # except OSError:
+    #     pass
+    # watch_queue(7, 'greedy')
+    # ## DEBUGING LINES ###
