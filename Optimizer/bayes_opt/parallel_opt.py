@@ -459,7 +459,11 @@ def disc_constrained_acq_max(ac, instance, n_acqs=1, n_warmup=10000, n_iter=250,
 
     for x_try in x_seeds:
         # Maximize the acquisition function
-        res = lo.maximizer(x_try)
+        try:
+            res = lo.maximizer(x_try)
+        except ValueError: #SLSQP can diverge if it starts near or outside a boundary on a flat surface
+            print("Note for Phil's benefit, ValueError in sklearn based maximzer.")
+            continue
         # See if success
         if not res.success:
             continue
