@@ -130,7 +130,7 @@ def plot_gp_1d(gp, df, axis, vector=None, utility_function=None, path=None, dpi=
     return fig
 
 
-def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dpi=300, threshold=0.6):
+def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dpi=300, threshold=0.6, scatter=False):
     """
     Plots gp along a specific from complete dataset along a specified
     vector in space for a given axis. If no vector is given, a zero vector
@@ -216,36 +216,40 @@ def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dp
     plt.rcParams['font.family'] = "sans-serif"
     ax = plt.subplot(projection='3d')
 
-    # Plot prediction
-    sig_col = cm.PuRd(sigma_mesh)
-    # Right main plot
-    smr = cm.ScalarMappable(cmap=cm.PuRd)
-    smr.set_array(sigma_mesh)
-    surf = ax.plot_surface(x1_mesh, x2_mesh, mu_mesh, facecolors=sig_col,
-                           linewidth=0, antialiased=False, rstride=4, cstride=8, alpha=0.5)
-    # Bottom
-    smb = cm.ScalarMappable(cmap=cm.coolwarm)
-    smb.set_array(u_mesh)
-    contb = ax.contourf(x1_mesh, x2_mesh, u_mesh, zdir='z',
-                        offset=0, levels=[i for i in range(int(y_max * 1.5))], cmap=cm.coolwarm)
-    # Top (bar on left)
-    smt = cm.ScalarMappable(cmap=cm.Spectral)
-    smt.set_array(mu_mesh)
-    contt = ax.contour(x1_mesh, x2_mesh, mu_mesh, zdir='z',
-                       offset=y_max * 1.1, levels=[i for i in range(int(y_max * 1.5))], cmap=cm.Spectral)
+    # Color org
+    sig_col = cm.Spectral
+    sm_sig = cm.ScalarMappable(cmap=sig_col)
+    sm_sig.set_array(sigma_mesh)
+    u_col = cm.coolwarm
+    sm_u = cm.ScalarMappable(cmap=u_col)
+    sm_u.set_array(u_mesh)
+    mu_col = cm.PuRd
+    sm_mu = cm.ScalarMappable(cmap=mu_col)
+    sm_mu.set_array(mu_mesh)
 
-    ax.scatter(x_near.iloc[:, a1], x_near.iloc[:, a2], marker='.', c='k')
-    # ax.scatter(x_near.iloc[:,a1],x_near.iloc[:,a2],y_near,marker='x',c='k')
+    # Plot prediction
+    surf = ax.plot_surface(x1_mesh, x2_mesh, mu_mesh, cmap=mu_col,
+                           linewidth=0, antialiased=True, rstride=8, cstride=1, alpha=1)
+    # Bottom utility
+    contb = ax.contourf(x1_mesh, x2_mesh, u_mesh, zdir='z',
+                        offset=0, levels=list(np.arange(np.min(utility), np.max(utility), 0.01)), cmap=u_col)
+    # Top (bar on left) uncertainty
+    contt = ax.contour(x1_mesh, x2_mesh, sigma_mesh, zdir='z',
+                       offset=y_max * 1.1, levels=list(np.arange(np.min(sigma), np.max(sigma), 0.05)), cmap=sig_col)
+
+    if scatter:
+        ax.scatter(x_near.iloc[:, a1], x_near.iloc[:, a2], marker='.', c='k')
+
     # Colorbars
     cbaxesr = fig.add_axes([0.88, 0.25, 0.03, 0.5])
-    cbr = fig.colorbar(smr, ax=ax, cax=cbaxesr)
-    cbr.set_label('Uncertainty', rotation=270, labelpad=20, fontdict={'size': 24})
+    cbr = fig.colorbar(sm_mu, ax=ax, cax=cbaxesr)
+    cbr.set_label('Predicted Mean', rotation=270, labelpad=22, fontdict={'size': 24})
     cbaxesb = fig.add_axes([0.25, 0.1, 0.5, 0.03])  # This is the position for the colorbar
-    cbb = fig.colorbar(smb, ax=ax, cax=cbaxesb, orientation='horizontal')
+    cbb = fig.colorbar(sm_u, ax=ax, cax=cbaxesb, orientation='horizontal')
     cbb.set_label('Utility Function', fontdict={'size': 24})
     cbaxesl = fig.add_axes([0.12, 0.25, 0.03, 0.5])
-    cbl = fig.colorbar(smt, ax=ax, cax=cbaxesl, orientation='vertical')
-    cbl.set_label('Predicted Mean', rotation=90, fontdict={'size': 24})
+    cbl = fig.colorbar(sm_sig, ax=ax, cax=cbaxesl, orientation='vertical')
+    cbl.set_label('Uncertainty', rotation=90, fontdict={'size': 24})
     cbaxesl.yaxis.set_ticks_position('left')
     cbaxesl.yaxis.set_label_position('left')
     # Plot observations
@@ -293,3 +297,69 @@ def plot_correlations(df, directory='./', save=False):
         f2.savefig(os.path.join(directory, 'cross_correlation.png'),
                    bbox_inches="tight")
     return f1, f2
+
+def plot_df_3var_2d(df, a1, a2, a3=None,  path=None, dpi=300):
+    """
+    Plots a dataframe sampling along 2 specific axes from complete dataset.
+    This can optionally be colored by a third axis.
+
+    Parameters
+    ==========
+    gp: gaussian process
+    df: dataframe of X data with labels, and y data labeled Target
+    a1: axis of reference by string or index (abisca)
+    a2: second axis of reference by string or index (ordinate)
+    a3: third axis of reference by string or index (coloring)
+    path: path for plot saving if desired
+    dpi: dots per inch for figure output
+
+    Returns
+    -------
+    fig
+
+    Outputs
+    -------
+    Figure as png if given path
+    """
+    # Proccess dataframe
+    features = list(df.columns)
+    if type(a1) == str:
+        a1 = features.index(a1)
+    else:
+        a1 = int(a1)
+    if type(a2) == str:
+        a2 = features.index(a2)
+    else:
+        a2 = int(a2)
+    if type(a3) == str:
+        a3 = features.index(a3)
+        c = df.iloc[:, a3]
+    elif a3:
+        a3 = int(a3)
+        c = df.iloc[:, a3]
+    else:
+        c = np.zeros_like(a1)
+
+    x = df.iloc[:,a1]
+    y = df.iloc[:,a2]
+
+    # Prep Figure
+    fig = plt.figure(figsize=(6, 6))
+    plt.rcParams['font.sans-serif'] = "DejaVu Sans"
+    plt.rcParams['font.family'] = "sans-serif"
+    ax = plt.subplot(1,1,1)
+    ax.scatter(x, y, c=c, cmap=cm.coolwarm)
+
+    # Color bar
+    sm = cm.ScalarMappable(cmap=cm.coolwarm)
+    sm.set_array(c)
+    cb = fig.colorbar(sm, ax=ax)
+    cb.set_label('{}'.format(features[a3]), fontdict={'size': 16})
+
+    # Plot Settings
+    ax.set_xlabel('{}'.format(features[a1]), fontdict={'size': 16})
+    ax.set_ylabel('{}'.format(features[a2]), fontdict={'size': 16})
+
+    if path: plt.savefig(path, dpi=dpi)
+
+    return fig
