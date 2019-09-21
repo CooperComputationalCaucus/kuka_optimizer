@@ -298,7 +298,8 @@ def plot_correlations(df, directory='./', save=False):
                    bbox_inches="tight")
     return f1, f2
 
-def plot_df_3var_2d(df, a1, a2, a3=None,  path=None, dpi=300):
+
+def plot_df_3var_2d(df, a1, a2, a3=None, path=None, dpi=300):
     """
     Plots a dataframe sampling along 2 specific axes from complete dataset.
     This can optionally be colored by a third axis.
@@ -340,14 +341,14 @@ def plot_df_3var_2d(df, a1, a2, a3=None,  path=None, dpi=300):
     else:
         c = np.zeros_like(a1)
 
-    x = df.iloc[:,a1]
-    y = df.iloc[:,a2]
+    x = df.iloc[:, a1]
+    y = df.iloc[:, a2]
 
     # Prep Figure
     fig = plt.figure(figsize=(6, 6))
     plt.rcParams['font.sans-serif'] = "DejaVu Sans"
     plt.rcParams['font.family'] = "sans-serif"
-    ax = plt.subplot(1,1,1)
+    ax = plt.subplot(1, 1, 1)
     ax.scatter(x, y, c=c, cmap=cm.coolwarm)
 
     # Color bar
@@ -363,3 +364,200 @@ def plot_df_3var_2d(df, a1, a2, a3=None,  path=None, dpi=300):
     if path: plt.savefig(path, dpi=dpi)
 
     return fig
+
+
+def radar_df(df, exclude=[], normalize=False, path=None, dpi=150, reference_df=None):
+    """
+    Plots a radar chart of the average value of each dataframe axis
+    The optional exlude list can be used to trim down excess axes.
+    Automatically excludes target.
+
+    Parameters
+    ----------
+    df: dataframe of X data with labels, and y data labeled Target
+    exclude: list of string labels of axes to exlcude
+    path: path for plot saving if desired
+    dpi: dots per inch for figure output
+
+    Returns
+    -------
+    fig
+
+    Outputs
+    -------
+    Figure as png if given path
+    """
+    from numpy import pi
+
+    # Collect features
+    try:
+        df = df.drop(columns=['Target'])
+    except:
+        pass
+    df = df.drop(columns=exclude)
+    if reference_df is None:
+        features = list(df.columns)
+    else:
+        features = list(reference_df.columns)
+        fs = list(df.columns)
+    N = len(features)
+
+    # Normalize to 0-1 per axis if requested
+    if normalize:
+        df = df / df.max()
+    # Assemble means as our values to plot
+    # Optionally uses reference dataframe to create consistent ordering and axes
+    means = list(df.mean())
+    if reference_df is None:
+        means, features = [list(x) for x in zip(*sorted(zip(means, features), reverse=True, key=lambda pair: pair[0]))]
+        yticks = np.arange(0, np.ceil(np.max(means)), 0.5)
+    else:
+        means = [{f: m for f, m in zip(fs, means)}[feature] for feature in features]
+        yticks = np.arange(0, np.ceil(np.max(reference_df.mean())), 0.5)
+    means += means[:1]
+
+    # Determine the values of each x axis
+    angles = [n / float(N) * 2 * pi for n in range(N)]
+    angles += angles[:1]
+
+    # Initialise the spider plot and prep figure
+    fig = plt.figure(figsize=(10, 10))
+    plt.rcParams['font.sans-serif'] = "DejaVu Sans"
+    plt.rcParams['font.family'] = "sans-serif"
+    ax = plt.subplot(111, polar=True)
+
+    # Draw one axis per variable + add labels labels yet
+    plt.xticks(angles[:-1], features, color='black', size=16)
+    ax.tick_params(axis='x', pad=50)
+    # Draw ylabels
+    ax.set_rlabel_position(0)
+
+    plt.yticks(yticks, [str(t) for t in yticks], color='grey', size=16)
+    plt.ylim(0, np.ceil(np.max(yticks)))
+    # Plot data
+    ax.plot(angles, means, linewidth=2, linestyle='solid')
+    # Fill area
+    ax.fill(angles, means, 'b', alpha=0.1)
+
+    plt.tight_layout()
+    if path: plt.savefig(path, dpi=dpi)
+
+    return fig
+
+
+def radar_dfs(dfs, exclude=[], overlay=True, normalize=False, figsize=(10, 10), path=None, dpi=150):
+    """
+    Plots a radar chart of the average value of each dataframe axis
+    The optional exlude list can be used to trim down excess axes.
+    Automatically excludes target.
+
+    Depends on the first df in the list for axis sizing and labeling
+
+    Parameters
+    ----------
+    figsize: optional tuple for figsize
+    normalize: Logical to normalize to max of each axis
+    overlay: Logical to overlay multiple plots or create subplots
+    dfs: list of dataframes of X data with labels
+    exclude: list of string labels of axes to exlcude
+    path: path for plot saving if desired
+    dpi: dots per inch for figure output
+
+    Returns
+    -------
+    fig
+
+    Outputs
+    -------
+    Figure as png if given path
+    """
+    from numpy import pi
+    # Preprocessing
+    for i in range(len(dfs)):
+        try:
+            dfs[i] = dfs[i].drop(columns=['Target'])
+        except:
+            pass
+        dfs[i] = dfs[i].drop(columns=exclude)
+        # Normalize to 0-1 per axis if requested
+        if normalize:
+            dfs[i] = dfs[i] / dfs[i].max()
+
+    # Determine the values of each x axis, and sorting from last df
+    features = list(dfs[-1].columns)
+    N = len(features)
+    angles = [n / float(N) * 2 * pi for n in range(N)]
+    angles += angles[:1]
+    means = list(dfs[-1].mean())
+    means, features = [list(x) for x in zip(*sorted(zip(means, features), reverse=True, key=lambda pair: pair[0]))]
+    means += means[:1]
+
+    # Prep figure
+    fig = plt.figure(figsize=figsize)
+    plt.rcParams['font.sans-serif'] = "DejaVu Sans"
+    plt.rcParams['font.family'] = "sans-serif"
+
+    if overlay:
+        ax = plt.subplot(111, polar=True)
+        # Draw one axis per variable + add labels labels yet
+        plt.xticks(angles[:-1], features, size=16)
+        ax.tick_params(axis='x', pad=50)
+        # Draw ylabels
+        ax.set_rlabel_position(0)
+        yticks = np.arange(0, np.ceil(np.max(means)), 0.5)
+        plt.yticks(yticks, [str(t) for t in yticks], color="grey", size=16)
+        plt.ylim(0, np.ceil(np.max(means)))
+        # Assembe and add plots
+        for df in dfs:
+            means = list(df.mean())
+            fs = list(df.columns)
+            means = [{f: m for f, m in zip(fs, means)}[feature] for feature in features]
+            means += means[:1]
+            n_samples = len(df)
+            ax.plot(angles, means, linewidth=2, linestyle='solid', label='{} Samples'.format(n_samples))
+            ax.fill(angles, means, alpha=0.1)
+        ax.legend(loc='upper left', bbox_to_anchor=(1.2, 1.0), fontsize=12)
+    else:
+        raise Exception("Yet to implement split sublplots for this function")
+    plt.tight_layout()
+    if path: plt.savefig(path, dpi=dpi)
+
+    return fig
+
+
+def radar_dfs_gif(dfs, path='./radar.gif', duration=20, **kwargs):
+    import os
+    import shutil
+
+    def make_gif(filenames, out_path, _duration=20):
+        import imageio
+        images = []
+        for filename in filenames:
+            images.append(imageio.imread(filename))
+        imageio.mimsave(out_path, images, 'GIF', duration=_duration)
+
+    def make_mp4(filenames, out_path, _duration=20):
+        import imageio
+        # images = []
+        fps = len(filenames)/_duration
+        videowriter = imageio.get_writer(out_path, fps=fps)
+        for filename in filenames:
+            videowriter.append_data(imageio.imread(filename))
+        videowriter.close()
+
+    os.makedirs('./tmp',exist_ok=True)
+
+    paths = []
+    for idx, df in enumerate(dfs):
+        _path = './tmp/{}.png'.format(idx)
+        paths.append(_path)
+        f=radar_df(df, path=_path, reference_df=dfs[-1])
+        plt.close(f)
+    make_gif(paths, path, _duration=duration)
+    make_mp4(paths, os.path.splitext(path)[0]+'.mp4')
+    shutil.rmtree('./tmp')
+
+
+
+
+
