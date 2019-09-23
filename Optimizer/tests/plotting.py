@@ -130,7 +130,8 @@ def plot_gp_1d(gp, df, axis, vector=None, utility_function=None, path=None, dpi=
     return fig
 
 
-def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dpi=300, threshold=0.6, scatter=False):
+def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dpi=300, threshold=0.6, n_points=200,
+               scatter=False):
     """
     Plots gp along a specific from complete dataset along a specified
     vector in space for a given axis. If no vector is given, a zero vector
@@ -149,6 +150,8 @@ def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dp
     path: path for plot saving if desired
     dpi: dots per inch for figure output
     threshold: threshold for kernel simialrity measure
+    n_points: integer number of points per axis in generating mesh
+    scatter: logical to include scatter plot of df data
 
     Returns
     -------
@@ -158,7 +161,6 @@ def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dp
     -------
     Figure as png if given path
     """
-    n_points = 100
     # Proccess dataframe
     X = df.drop(columns=['Target'])
     features = list(X.columns)
@@ -229,10 +231,10 @@ def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dp
 
     # Plot prediction
     surf = ax.plot_surface(x1_mesh, x2_mesh, mu_mesh, cmap=mu_col,
-                           linewidth=0, antialiased=True, rstride=8, cstride=1, alpha=1)
+                           linewidth=0, antialiased=True, rstride=1, cstride=1, alpha=0.75)
     # Bottom utility
     contb = ax.contourf(x1_mesh, x2_mesh, u_mesh, zdir='z',
-                        offset=0, levels=list(np.arange(np.min(utility), np.max(utility), 0.01)), cmap=u_col)
+                        offset=0, levels=list(np.arange(np.min(utility), np.max(utility), 0.005)), cmap=u_col)
     # Top (bar on left) uncertainty
     contt = ax.contour(x1_mesh, x2_mesh, sigma_mesh, zdir='z',
                        offset=y_max * 1.1, levels=list(np.arange(np.min(sigma), np.max(sigma), 0.05)), cmap=sig_col)
