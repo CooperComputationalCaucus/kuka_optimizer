@@ -398,7 +398,13 @@ def radar_df(df, exclude=[], normalize=False, path=None, dpi=150, reference_df=N
     if reference_df is None:
         features = list(df.columns)
     else:
-        features = list(reference_df.columns)
+        try:
+            reference_df = reference_df.drop(columns=['Target'])
+        except:
+            pass
+        reference_df = reference_df.drop(columns=exclude)
+        _, features = [list(x) for x in zip(*sorted(zip(list(reference_df.mean()), list(reference_df.columns)),
+                                                    reverse=True, key=lambda pair: pair[0]))]
         fs = list(df.columns)
     N = len(features)
 
@@ -551,7 +557,7 @@ def radar_dfs_gif(dfs, path='./radar.gif', duration=20, **kwargs):
     for idx, df in enumerate(dfs):
         _path = './tmp/{}.png'.format(idx)
         paths.append(_path)
-        f=radar_df(df, path=_path, reference_df=dfs[-1])
+        f=radar_df(df, path=_path, reference_df=dfs[-1], **kwargs)
         plt.close(f)
     make_gif(paths, path, _duration=duration)
     make_mp4(paths, os.path.splitext(path)[0]+'.mp4')
