@@ -8,6 +8,7 @@ from mpl_toolkits.mplot3d import axes3d
 from matplotlib import cm
 import matplotlib
 from matplotlib.font_manager import FontProperties
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import os
 
 matplotlib.matplotlib_fname()
@@ -300,7 +301,83 @@ def plot_correlations(df, directory='./', save=False):
                    bbox_inches="tight")
     return f1, f2
 
+def plot_bivariate_correlations(df, path=None, dpi=150):
+    """
+    Plots heatmaps of 2-variable correlations to the Target function
+    The bivariate correlations are assmebled using both the arithmatic and geometric means for
+    two subplots in the figure.
 
+    Parameters
+    ----------
+    df: dataframe
+    path: optional string path for saving
+    dpi: integer dots per inch
+
+    Returns
+    -------
+    fig: figure with 2 subplots of bivariate correlations (using arithmatic and geometric mean)
+    """
+    # Plot function for subplots
+    def makeit(ax):
+        bound =np.max(np.abs(correlations))
+        img = ax.matshow(correlations, cmap=cm.coolwarm, vmin=-bound, vmax=bound)
+        ax.set(xticks=np.arange(df.shape[1]),
+               yticks=np.arange(df.shape[1]),
+               xticklabels=df.columns,
+               yticklabels=df.columns
+               )
+        for label in ax.xaxis.get_ticklabels():
+            label.set_rotation(75)
+            label.set_fontsize(16)
+        for label in ax.yaxis.get_ticklabels():
+            label.set_fontsize(16)
+        if matplotlib.__version__ == '3.1.1':
+            ax.set_ylim(len(df.columns) - 0.5, -0.5)
+        # create an axes on the right side of ax. The width of cax will be 5%
+        # of ax and the padding between cax and ax will be fixed at 0.05 inch.
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="8%", pad=0.1)
+        cb = plt.colorbar(img, cax=cax)
+        cb.set_ticks([])
+
+
+    try:
+        target = df.Target
+    except AttributeError:
+        print('Not set up for working without Target series in DataFrame')
+    df = df.drop(columns=["Target"])
+    features = list(df.columns)
+    arr = np.array(df)
+
+    correlations = np.zeros((len(features), len(features)))
+    # First the arithmatic mean
+    for i in range(len(features)):
+        dic = {}
+        for j in range(len(features)):
+            dic["{}+{}".format(features[i], features[j])] = (arr[:, i] + arr[:, j]) / 2
+        _df = pd.DataFrame(dic)
+        correlations[i,:] = _df.corrwith(target)
+
+    fig, axes = plt.subplots(2, 1, figsize=(10, 20))
+    ax = axes[0]
+    makeit(ax)
+    ax.set_title('Arithmatic Mean Bivariate Correlation', y=1.3, fontweight="bold", fontsize=18)
+
+    correlations = np.zeros((len(features), len(features)))
+    # Second the geometrix mean
+    for i in range(len(features)):
+        dic = {}
+        for j in range(len(features)):
+            dic["{}*{}".format(features[i], features[j])] = np.sqrt((arr[:, i] * arr[:, j]))
+        _df = pd.DataFrame(dic)
+        correlations[i, :] = _df.corrwith(target)
+    ax = axes[1]
+    makeit(ax)
+    ax.set_title('Geometric Mean Bivariate Correlation', y=1.3, fontweight="bold", fontsize=18)
+
+    plt.tight_layout()
+    if path: plt.savefig(path, dpi=dpi)
+    return fig
 def plot_df_3var_2d(df, a1, a2, a3=None, path=None, dpi=300):
     """
     Plots a dataframe sampling along 2 specific axes from complete dataset.
