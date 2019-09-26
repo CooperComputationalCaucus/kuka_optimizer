@@ -29,6 +29,24 @@ def posterior(gp, grid):
     return mu, sigma
 
 
+def make_gif(filenames, out_path, _duration=20):
+    import imageio
+    images = []
+    for filename in filenames:
+        images.append(imageio.imread(filename))
+    imageio.mimsave(out_path, images, 'GIF', duration=_duration / len(images))
+
+
+def make_mp4(filenames, out_path, _duration=20):
+    import imageio
+    # images = []
+    fps = len(filenames) / _duration
+    videowriter = imageio.get_writer(out_path, fps=fps)
+    for filename in filenames:
+        videowriter.append_data(imageio.imread(filename))
+    videowriter.close()
+
+
 def plot_gp_1d(gp, df, axis, vector=None, utility_function=None, path=None, dpi=300, threshold=0.6):
     """
 
@@ -263,7 +281,7 @@ def plot_gp_2d(gp, df, a1, a2, vector=None, utility_function=None, path=None, dp
     ax.set_xlim((x1_min, x1_max))
     ax.set_ylim((x2_min, x2_max))
     ax.set_zlim((0, y_max * 1.1))
-    ax.set_title('Plot along {}'.format(vector), fontdict={'size': 24}, pad=20)
+    #ax.set_title('Plot along {}'.format(vector), fontdict={'size': 24}, pad=20)
     ax.set_zlabel('Hydrogen generation', fontdict={'size': 24}, labelpad=20)
     ax.set_xlabel('{}'.format(features[a1], vector), fontdict={'size': 24}, labelpad=20)
     ax.set_ylabel('{}'.format(features[a2], vector), fontdict={'size': 24}, labelpad=20)
@@ -301,6 +319,7 @@ def plot_correlations(df, directory='./', save=False):
                    bbox_inches="tight")
     return f1, f2
 
+
 def plot_bivariate_correlations(df, path=None, dpi=150):
     """
     Plots heatmaps of 2-variable correlations to the Target function
@@ -317,9 +336,10 @@ def plot_bivariate_correlations(df, path=None, dpi=150):
     -------
     fig: figure with 2 subplots of bivariate correlations (using arithmatic and geometric mean)
     """
+
     # Plot function for subplots
     def makeit(ax):
-        bound =np.max(np.abs(correlations))
+        bound = np.max(np.abs(correlations))
         img = ax.matshow(correlations, cmap=cm.coolwarm, vmin=-bound, vmax=bound)
         ax.set(xticks=np.arange(df.shape[1]),
                yticks=np.arange(df.shape[1]),
@@ -340,7 +360,6 @@ def plot_bivariate_correlations(df, path=None, dpi=150):
         cb = plt.colorbar(img, cax=cax)
         cb.set_ticks([])
 
-
     try:
         target = df.Target
     except AttributeError:
@@ -356,7 +375,7 @@ def plot_bivariate_correlations(df, path=None, dpi=150):
         for j in range(len(features)):
             dic["{}+{}".format(features[i], features[j])] = (arr[:, i] + arr[:, j]) / 2
         _df = pd.DataFrame(dic)
-        correlations[i,:] = _df.corrwith(target)
+        correlations[i, :] = _df.corrwith(target)
 
     fig, axes = plt.subplots(2, 1, figsize=(10, 20))
     ax = axes[0]
@@ -378,6 +397,8 @@ def plot_bivariate_correlations(df, path=None, dpi=150):
     plt.tight_layout()
     if path: plt.savefig(path, dpi=dpi)
     return fig
+
+
 def plot_df_3var_2d(df, a1, a2, a3=None, path=None, dpi=300):
     """
     Plots a dataframe sampling along 2 specific axes from complete dataset.
@@ -613,36 +634,141 @@ def radar_dfs(dfs, exclude=[], overlay=True, normalize=False, figsize=(10, 10), 
 def radar_dfs_gif(dfs, path='./radar.gif', duration=20, **kwargs):
     import os
     import shutil
-
-    def make_gif(filenames, out_path, _duration=20):
-        import imageio
-        images = []
-        for filename in filenames:
-            images.append(imageio.imread(filename))
-        imageio.mimsave(out_path, images, 'GIF', duration=_duration)
-
-    def make_mp4(filenames, out_path, _duration=20):
-        import imageio
-        # images = []
-        fps = len(filenames)/_duration
-        videowriter = imageio.get_writer(out_path, fps=fps)
-        for filename in filenames:
-            videowriter.append_data(imageio.imread(filename))
-        videowriter.close()
-
-    os.makedirs('./tmp',exist_ok=True)
+    os.makedirs('./tmp', exist_ok=True)
 
     paths = []
     for idx, df in enumerate(dfs):
         _path = './tmp/{}.png'.format(idx)
         paths.append(_path)
-        f=radar_df(df, path=_path, reference_df=dfs[-1], **kwargs)
+        f = radar_df(df, path=_path, reference_df=dfs[-1], **kwargs)
         plt.close(f)
     make_gif(paths, path, _duration=duration)
-    make_mp4(paths, os.path.splitext(path)[0]+'.mp4')
+    make_mp4(paths, os.path.splitext(path)[0] + '.mp4')
     shutil.rmtree('./tmp')
 
 
+def target_plot(df, reference_df=None, control_v=None, path=None, dpi=150):
+    """
+    Makes simple plot of target with respect to sample number
+    Parameters
+    ----------
+    df: dataframe with y values labeled Target
+    reference_df: optinal dataframe for plotting reference
+    path: output path
+    dpi:  integer dots per inch
 
+    Returns
+    -------
+    fig
 
+    """
+    # Proccess dataframe
+    y = df.Target
+    x = np.array(list(range(1, len(y) + 1)))
+    # Split controls
+    if control_v is None:
+        control_v = {'Acid Red': 0,
+                     'Cysteine': 0.5,
+                     'Methylene Blue': 0,
+                     'NaCl': 0,
+                     'NaOH': 0,
+                     'P10': 5,
+                     'PVP': 0,
+                     'Rhodamine Blue': 0,
+                     'SDS': 0,
+                     'Sodium Silicate': 0
+                     }
+    criteria = np.array(df['Target'] > 0)
+    for key in control_v:
+        criteria = criteria * np.array(np.abs(df[key] - control_v[key]) < 0.2)
+    cnt_y = y[criteria]
+    cnt_x = x[criteria]
+    y = y[~criteria]
+    x = x[~criteria]
+    # Add reference
+    if reference_df is None:
+        ref_y = y
+        ref_x = x
+    else:
+        ref_y = reference_df.Target
+        ref_x = list(range(1, len(ref_y) + 1))
+
+    running_x = [0]
+    running_y = [0]
+    for i in range(len(y)):
+        if np.max(y.iloc[:i+1]) > running_y[-1]:
+            running_x.append(x[i])
+            running_y.append(np.max(y.iloc[:i+1]))
+
+    fig = plt.figure(figsize=(6, 8))
+    plt.rcParams['font.sans-serif'] = "DejaVu Sans"
+    plt.rcParams['font.family'] = "sans-serif"
+    plt.rcParams.update({'font.size': 18})
+    ax = plt.subplot(1, 1, 1)
+
+    cmap = cm.plasma_r
+    # Main plot
+    ax.scatter(x, y,
+               c=y,
+               cmap=cmap,
+               vmin=np.min(ref_y),
+               vmax=np.max(ref_y),
+               label="Experiment"
+               )
+
+    # Control Plot
+    ax.scatter(cnt_x,
+               cnt_y,
+               marker='s',
+               c='black',
+               s=16,
+               label="Controls"
+               )
+    # Max plot
+    ax.plot(running_x, running_y,
+            linewidth=2,
+            linestyle='dashed',
+            color='indigo'
+            )
+    ax.set_xlim((np.min(ref_x), np.max(ref_x)))
+    ax.set_ylim((np.min(ref_y), np.max(ref_y)))
+    ax.set_xlabel("Sample number")
+    ax.set_ylabel("Hydrogen evolution micromol")
+    leg = ax.legend(loc="upper left", borderaxespad=0.5, fontsize=14)
+    leg.legendHandles[0].set_color('indigo')
+
+    plt.tight_layout()
+    if path:
+        plt.savefig(path, dpi=dpi)
+    return fig
+
+def target_evolution_gif(dfs, path='./target_evolution.gif', duration=20, **kwargs):
+    import os
+    import shutil
+    os.makedirs('./tmp', exist_ok=True)
+
+    paths = []
+    for idx, df in enumerate(dfs):
+        _path = './tmp/{}.png'.format(idx)
+        paths.append(_path)
+        f = target_plot(df, path=_path, reference_df=dfs[-1], **kwargs)
+        plt.close(f)
+    make_gif(paths, path, _duration=duration)
+    make_mp4(paths, os.path.splitext(path)[0] + '.mp4')
+    shutil.rmtree('./tmp')
+
+def model_surface_gif(gps, dfs, a1, a2, vector=None, path='./target_evolution.gif', duration=20, **kwargs):
+    import os
+    import shutil
+    os.makedirs('./tmp', exist_ok=True)
+
+    paths = []
+    for idx, df in enumerate(dfs):
+        _path = './tmp/{}.png'.format(idx)
+        paths.append(_path)
+        f = plot_gp_2d(gps[idx], df, a1, a2, vector=vector, path=_path, **kwargs)
+        plt.close(f)
+    make_gif(paths, path, _duration=duration)
+    make_mp4(paths, os.path.splitext(path)[0] + '.mp4')
+    shutil.rmtree('./tmp')
 
