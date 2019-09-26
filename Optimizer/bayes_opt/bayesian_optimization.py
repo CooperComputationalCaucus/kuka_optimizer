@@ -1,3 +1,7 @@
+"""
+Inspired by and borrowed from:
+    https://github.com/fmfn/BayesianOptimization
+"""
 import warnings
 import numpy as np
 from multiprocessing import Pool

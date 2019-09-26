@@ -1,3 +1,7 @@
+"""
+Inspired by and borrowed from:
+    https://github.com/fmfn/BayesianOptimization
+"""
 import numpy as np
 from .util import ensure_rng
 
