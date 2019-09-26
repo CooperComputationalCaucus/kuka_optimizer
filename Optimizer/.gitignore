@@ -87,6 +87,7 @@ running/*
 runqueue/*
 completed/*
 .idea/*
+./old*
 
 #Exceptions to the above#
 ######################## (use !)

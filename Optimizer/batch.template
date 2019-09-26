@@ -1,9 +1,0 @@
-sonication_time_min:0
-illumination_time_min:60
-gc_method:constant-HS rc
-purge_time:60
-cap_vials:1
-
-SampleIndex,P10-MIX1,TEOA-0-5VV,water,L-Cysteine-50gL,NaCl-3M,NaOH-1mM,HCl-1mM,PVP-1wt,SDS-1wt,Sodiumsilicate-1wt,AcidRed871_0gL,RhodamineB1_0gL,MethyleneB_250mgL
-${idx},${P10-MIX1},${TEOA-0-5VV},${water},${L-Cysteine-50gL},${NaCl-3M},${NaOH-1mM},${HCl-1mM},${PVP-1wt},${SDS-1wt},${Sodiumsilicate-1wt},${AcidRed871_0gL},${RhodamineB1_0gL},${MethyleneB_250mgL}
-
