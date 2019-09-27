@@ -1,5 +1,6 @@
 from Optimizer.bayes_opt import DiscreteBayesianOptimization
 from Optimizer.bayes_opt.event import Events
+from Optimizer import bayes_opt
 import time
 import numpy as np
 from Optimizer.bayes_opt import UtilityFunction
@@ -152,4 +153,6 @@ def gp_main():
                   n_batches=35)
 
 if __name__ == "__main__":
+    import sys
+    sys.path.append('../')
     gp_main()

@@ -135,14 +135,16 @@ class GPVirtualModel():
                         'MethyleneB_250mgL': 2,
                         'NaCl-3M': 3,
                         'NaOH-1M': 4,
-                        'PVP-1wt': 5,
-                        'RhodamineB1_0gL': 6,
-                        'SDS-1wt': 7,
-                        'Sodiumsilicate-1wt': 8}
+                        'P10-MIX1': 5,
+                        'PVP-1wt': 6,
+                        'RhodamineB1_0gL': 7,
+                        'SDS-1wt': 8,
+                        'Sodiumsilicate-1wt': 9}
         if path is None:
             path = 'GPVirtualModel.pkl'
         with open(path, 'rb') as file:
-            gp = pickle.load(file)
+            dbo = pickle.load(file)['model']
+            gp = dbo._gp
         self.f = self.func
         self.gp = gp
         self.noisy = noisy
