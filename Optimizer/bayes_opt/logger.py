@@ -10,11 +10,13 @@ from .util import Colours
 def _get_default_logger(verbose):
     return ScreenLogger(verbose=verbose)
 
+
 def _get_discrete_logger(verbose):
     return DiscreteLogger(verbose=verbose)
 
+
 class ScreenLogger(_Tracker):
-    _default_cell_size = 9
+    _default_cell_size = 12
     _default_precision = 4
 
     def __init__(self, verbose=2):
@@ -32,12 +34,12 @@ class ScreenLogger(_Tracker):
 
     def _format_number(self, x):
         if isinstance(x, int):
-                s = "{x:< {s}}".format(
-                    x=x,
-                    s=self._default_cell_size,
-                )
+            s = "{x:< {s}d}".format(
+                x=x,
+                s=self._default_cell_size,
+            )
         else:
-            s = "{x:< {s}.{p}}".format(
+            s = "{x:^ {s}.{p}f}".format(
                 x=x,
                 s=self._default_cell_size,
                 p=self._default_precision,
@@ -100,15 +102,16 @@ class ScreenLogger(_Tracker):
         elif event == Events.OPTMIZATION_END:
             line = "=" * self._header_length + "\n"
         elif event == Events.BATCH_END:
-            line = "END BATCH"+"-" * (self._header_length-9) + "\n"
+            line = "END BATCH" + "-" * (self._header_length - 9) + "\n"
 
         if self._verbose:
             print(line, end="")
         self._update_tracker(event, instance)
 
+
 class DiscreteLogger(ScreenLogger):
     '''Adds changes to printout for discrete set-up'''
-    _default_cell_size = 9
+    _default_cell_size = 12
     _default_precision = 4
 
     def __init__(self, verbose=2):
@@ -120,21 +123,22 @@ class DiscreteLogger(ScreenLogger):
         res = instance.res[-1]
         cells = []
         disc_cells = []
-        
+
         cells.append(self._format_number(self._iterations + 1))
         disc_cells.append(self._format_number(self._iterations + 1))
         cells.append(self._format_number(res["target"]))
         disc_cells.append(self._format_number(res["target"]))
 
         for key in instance.space.keys:
-            cells.append(self._format_number(res["params"][key]))       
+            cells.append(self._format_number(res["params"][key]))
         x = list(instance._space._bin([res["params"][key] for key in res["params"]]))
         for c in x:
             disc_cells.append(self._format_number(c))
-        line =  "| " + " | ".join(map(colour, cells)) + " |\n"
+        line = "| " + " | ".join(map(colour, cells)) + " |\n"
         line += "| " + " | ".join(map(colour, disc_cells)) + " |"
         return line
-    
+
+
 class JSONLogger(_Tracker):
     def __init__(self, path):
         self._path = path if path[-5:] == ".json" else path + ".json"
