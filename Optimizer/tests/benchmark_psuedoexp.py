@@ -68,8 +68,8 @@ def run_function(func, prange, constraints=[], verbose=True, batch_size=12, init
                 next_point[key] += np.random.uniform(-.01, .01)  # makes discrete point different than bin
                 if next_point[key] < 0: next_point[key] = 0.
             target = func(**next_point)
-            if target<0:
-                target=0
+            if target < 0:
+                target = 0
             dbo.register(params=next_point, target=target)
             if target > max_val['val']:
                 max_val['val'] = target
@@ -109,10 +109,10 @@ def run_GP_model(prange, path, constraints=[], noisy=False, verbose=True, batch_
 
 
 def loop_GP_model(n_iter, prange, path, constraints=[], noisy=False, verbose=True, batch_size=12, init_random=3,
-                  n_batches=25):
-    os.makedirs('./tmp', exist_ok=True)
+                  n_batches=25, outdir='./tmp'):
+    os.makedirs(outdir, exist_ok=True)
     for i in range(n_iter):
-        _path = './tmp/{}.csv'.format(i)
+        _path = os.path.join(outdir, '{}.csv'.format(i))
         dbo = run_GP_model(prange,
                            path,
                            constraints=constraints,
@@ -122,18 +122,20 @@ def loop_GP_model(n_iter, prange, path, constraints=[], noisy=False, verbose=Tru
                            init_random=init_random,
                            n_batches=n_batches)
         gp = dbo._gp
-        df = pd.concat([pd.DataFrame(gp.X_train_, columns=prange.keys()), pd.DataFrame(gp.y_train_, columns=['Target'])],
-                       axis=1)
+        df = pd.concat(
+            [pd.DataFrame(gp.X_train_, columns=prange.keys()), pd.DataFrame(gp.y_train_, columns=['Target'])],
+            axis=1)
         df.to_csv(_path)
 
-def gp_main():
+
+def gp_main(outdir='./tmp'):
     n_iter = 50
     prange = {'AcidRed871_0gL': (0, 5, .25),
               'L-Cysteine-50gL': (0, 5, .25),
               'MethyleneB_250mgL': (0, 5, .25),
               'NaCl-3M': (0, 5, .25),
               'NaOH-1M': (0, 5, .25),
-              'P10-MIX1': (1,5,0.2,),
+              'P10-MIX1': (1, 5, 0.2,),
               'PVP-1wt': (0, 5, .25),
               'RhodamineB1_0gL': (0, 5, .25),
               'SDS-1wt': (0, 5, .25),
@@ -150,9 +152,19 @@ def gp_main():
                   verbose=1,
                   batch_size=14,
                   init_random=2,
-                  n_batches=25)
+                  n_batches=25,
+                  outdir=outdir)
+
 
 if __name__ == "__main__":
     import sys
+    import multiprocessing
     sys.path.append('../')
-    gp_main()
+
+    N_PROCS = 1
+    procs=[]
+    for p in range(N_PROCS):
+        outdir = './tmp_{}'.format(p)
+        proc = multiprocessing.Process(target=gp_main, args=(outdir,))
+        procs.append(proc)
+        proc.start()
