@@ -150,7 +150,7 @@ def gp_main():
                   verbose=1,
                   batch_size=14,
                   init_random=2,
-                  n_batches=35)
+                  n_batches=25)
 
 if __name__ == "__main__":
     import sys
