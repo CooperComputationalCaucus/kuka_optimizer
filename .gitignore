@@ -58,6 +58,9 @@ WorkflowCom/Liquidpump1*
 thirdparty/opencv/*
 **/bin
 
+hypotheses/*
+!hypotheses/tax_monday_templates
+
 **/.idea/workspace.xml
 
 .idea
