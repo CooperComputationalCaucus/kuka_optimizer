@@ -1,2 +1,0 @@
-SampleIndex,SampleNumber,Name,vial_capped,gc_well_number,hydrogen_evolution,oxygen_evolution,hydrogen_evolution_micromol,oxygen_evolution_micromol,P10-HS,AscorbicAcid0-1M,P10-HS_dispensed,AscorbicAcid0-1M_dispensed,
-${idx},${sample_number},p10HSAA-bigrun-3_${sample_number},1,1,,,,,${P10-HS},${AscorbicAcid0-1M},,
