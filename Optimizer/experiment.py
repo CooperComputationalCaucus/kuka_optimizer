@@ -786,15 +786,15 @@ def watch_queue(multiprocessing=1, sampler='greedy'):
 
 
 if __name__ == "__main__":
-    try:
-        p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
-        p1.start()
-        sleep(Experiment.SLEEP_DELAY)
-        p2 = multiprocessing.Process(target=watch_queue, args=(14,'capitalist',)) #CPUs used for batch generation and sampler choice, Search strategy
-        p2.start()
-    except:
-        tb = traceback.format_exc()
-        print(tb)
+    # try:
+    #     p1 = multiprocessing.Process(target=watch_completed, args=(360,)) #Delay for model building when finding new data
+    #     p1.start()
+    #     sleep(Experiment.SLEEP_DELAY)
+    #     p2 = multiprocessing.Process(target=watch_queue, args=(7,'capitalist',)) #CPUs used for batch generation and sampler choice, Search strategy
+    #     p2.start()
+    # except:
+    #     tb = traceback.format_exc()
+    #     print(tb)
 
     #     ### DEBUGINING LINES ###
     #     p1 = multiprocessing.Process(target=watch_completed, args=(900,)) #Delay for model building when finding new data
@@ -803,9 +803,9 @@ if __name__ == "__main__":
     #     p2 = multiprocessing.Process(target=watch_queue, args=(4,'KMBBO',)) #CPUs used for batch generation
     #     p2.start()
     # ## IN SERIAL ###
-    # try:
-    #     os.remove('optimizer.pickle')  # Clean start
-    # except OSError:
-    #     pass
-    # watch_queue(7, 'greedy')
-    # ## DEBUGING LINES ###
+    try:
+        os.remove('optimizer.pickle')  # Clean start
+    except OSError:
+        pass
+    watch_queue(1, 'capitalist')
+    ## DEBUGING LINES ###
