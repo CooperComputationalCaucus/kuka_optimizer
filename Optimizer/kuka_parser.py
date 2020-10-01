@@ -25,6 +25,7 @@ class Parser:
             self.patterns[chem] = re.compile(r"\$\{"+chem+r"\}")
         
         self.patterns['idx'] = re.compile(r"\$\{idx\}")
+        self.patterns['batch_name'] = re.compile(r"\$\{batch_name\}")
         self.patterns['sample_number'] = re.compile(r"\$\{sample_number\}")
         
         #Water hack pattern
@@ -201,6 +202,7 @@ class Parser:
                         line = self.patterns[chem].sub(self.FLOAT_FORMAT.format(amount), line)
 
                     line = self.patterns['idx'].sub(str(i), line)
+                    line = self.patterns['batch_name'].sub(batch_name, line)
                     line = self.patterns['sample_number'].sub(str(i+1), line)
 
 
@@ -211,7 +213,6 @@ class Parser:
                     #TEST
                     # line = self.test.sub(self.FLOAT_FORMAT.format(test), line)
                     #############################################
-                    
                     f.write(line)
 
                     f.write('\n')

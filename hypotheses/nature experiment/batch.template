@@ -1,0 +1,8 @@
+sonication_time_min:0
+illumination_time_min:60
+gc_method:constant-HS rc
+purge_time:60
+cap_vials:1
+
+SampleIndex,P10-MIX1,L-Cysteine-100gL,NaCl-3M,NaOH-1M,PVP-1wt,SDS-1wt,MethyleneB_250mgL,AcidRed871_0gL,RhodamineB1_0gL,Sodiumsilicate-1wt,water
+${idx},${P10-MIX1},${L-Cysteine-100gL},${NaCl-3M},${NaOH-1M},${PVP-1wt},${SDS-1wt},${MethyleneB_250mgL},${AcidRed871_0gL},${RhodamineB1_0gL},${Sodiumsilicate-1wt},${water}

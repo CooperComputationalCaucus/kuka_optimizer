@@ -23,10 +23,11 @@ class Experiment:
     BATCH_FILES = 1  # number of files that we want to see in the queue, should be BATCH/BATCH_FILES = MINI_BATCH
     SLEEP_DELAY = 5  # delay in seconds before querying the queue folder again
 
-    directory_path = './'
+    directory_path = 'D:\\Workflow\\'
 
     def __init__(self, directory_path=None):
-        if directory_path: self.directory_path = directory_path
+        if directory_path:
+            self.directory_path = directory_path
 
         # General setup of the experiment
         self.compounds = []  # Simply the list of compounds to vary

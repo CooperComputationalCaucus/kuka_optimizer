@@ -1,0 +1,5 @@
+SolidName,Location,Blocked,tapping,DispensingAlgorithm,Min,Max
+CaCO3,0,0,0,Advanced,0.0,5.0,919
+CaCO3,1,1,0,Advanced,0.0,5.0,989
+pt/gcn2,2,1,0,Advanced,0.0,5.0,307
+pt/gcn2,-1,0,0,Advanced,0.0,5.0,959
