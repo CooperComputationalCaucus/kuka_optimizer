@@ -1,10 +1,10 @@
-from Optimizer.bayes_opt import DiscreteBayesianOptimization
-from Optimizer.bayes_opt.event import Events
-from Optimizer import bayes_opt
+from bayes_opt import DiscreteBayesianOptimization
+from bayes_opt.event import Events
+import bayes_opt
 import time
 import numpy as np
-from Optimizer.bayes_opt import UtilityFunction
-from Optimizer.tests.test_functions import GPVirtualModel
+from bayes_opt import UtilityFunction
+from tests.test_functions import GPVirtualModel
 import pandas as pd
 import os, shutil
 
