@@ -1,4 +1,0 @@
-batch_name:test
-SampleIndex,SampleNumber,Name,vial_capped,gc_well_number,hydrogen_evolution,oxygen_evolution,hydrogen_evolution_micromol,oxygen_evolution_micromol,P10-HS,AscorbicAcid0-1M,P10-HS_dispensed,AscorbicAcid0-1M_dispensed,
-0,1,p10HSAA-bigrun-3_1,1,1,,,,,5,4.99,,
-1,2,p10HSAA-bigrun-3_2,1,1,,,,,5.1,4.39,,

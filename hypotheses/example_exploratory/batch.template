@@ -1,8 +1,0 @@
-sonication_time_min:10
-illumination_time_min:60
-gc_method:constant-HS rc
-purge_time:60
-cap_vials:1
-
-SampleIndex,vial_capped,gc_well_number,hydrogen_evolution,oxygen_evolution,hydrogen_evolution_micromol,oxygen_evolution_micromol,pt/gcn2,TEOA-0-5VV,water,AcidRed871_0gL,Tartrazine1_0gL,ErythrosinB1_0gL,BromocresolGreen0_25gL,AcidGreen25_0_25gL
-${idx},,,,,,,5,0.5,${water},${AcidRed871_0gL},${Tartrazine1_0gL},${ErythrosinB1_0gL},${BromocresolGreen0_25gL},${AcidGreen25_0_25gL}
